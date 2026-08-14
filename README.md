@@ -1,5 +1,33 @@
-# Welcome to GitHub Desktop!
+# ניהול פיננסי
 
-This is your README. READMEs are where you can communicate what your project is and how to use it.
+איחוד דפי אשראי ובנק ממספר מקורות לקובץ תנועות אחד, סיווג קטגוריות, והפקת
+דשבורד, דוח שנתי, חריגות ואופטימיזציית הטבות.
 
-Write your name on line 6, save it, and then head back to GitHub Desktop.
+## התקנה
+
+```bash
+pip install -r requirements.txt
+```
+
+## שימוש
+
+```bash
+# הדגמה על נתונים סינתטיים — לראות שהכל עובד
+python3 scripts/run_all.py --demo
+
+# על הנתונים שלך
+#   1. שים דפים ב-inbox/cal/ , inbox/max/ , inbox/bank/
+#   2. כייל כל מקור חדש (פעם אחת בלבד):
+python3 scripts/detect.py inbox/cal/<קובץ>
+#   3. סמן verified: true ב-config/parsers.yaml, ואז:
+python3 scripts/run_all.py
+```
+
+הדשבורד נוצר ב-`reports/dashboard.html`.
+
+**ההוראות המלאות — כולל כיול כיוון הסימן — נמצאות ב-[CLAUDE.md](CLAUDE.md).**
+
+## פרטיות
+
+`inbox/`, `data/` ו-`reports/` חסומים ב-`.gitignore`. שום נתון פיננסי אמיתי
+לא נכנס ל-git.

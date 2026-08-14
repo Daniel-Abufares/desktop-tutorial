@@ -1,0 +1,108 @@
+# Column mappings per source. Once a source is calibrated and verified here,
+# every later run is fully automatic.
+#
+# Run `python3 scripts/detect.py <file>` on a new file to get a proposed block,
+# then paste it in and set calibration.verified: true after you have checked the
+# sign against a row you are sure about.
+#
+# amount_sign — how the RAW file represents an expense:
+#   expense_positive   expense appears as  250.00   (most Israeli card statements)
+#   expense_negative   expense appears as -250.00   (most current-account exports)
+#   two_columns        separate debit / credit columns
+#
+# The pipeline always stores expense as NEGATIVE internally.
+
+version: 1
+
+sources:
+
+  # ---------------------------------------------------------------- CAL ----
+  cal:
+    display_name: "כאל"
+    accounts:
+      - id: "cal-0000"
+        label: "כאל ‏0000"
+        match:
+          filename_contains: ["0000"]
+          content_contains: []
+    format:
+      file_types: ["xlsx", "csv"]
+      header_row: null          # null = auto-detect by scanning for the date column
+      encoding: "auto"
+      columns:
+        date: ["תאריך עסקה", "תאריך העסקה", "תאריך"]
+        merchant: ["שם בית העסק", "שם בית עסק", "בית עסק", "תיאור"]
+        amount: ["סכום חיוב", "סכום החיוב", "סכום"]
+        currency: ["מטבע", "מטבע חיוב"]
+        notes: ["הערות", "סוג עסקה"]
+      date_formats: ["%d/%m/%Y", "%d/%m/%y", "%d-%m-%Y", "%Y-%m-%d"]
+      amount_sign: "expense_positive"
+      debit_column: null
+      credit_column: null
+      skip_rows_containing: ["סה\"כ", 'סה"כ', "סך הכל", "עסקאות בחו\"ל"]
+    calibration:
+      verified: false
+      verified_on: null
+      sample_row: null
+      note: "PLACEHOLDER — not yet checked against a real file."
+
+  # ---------------------------------------------------------------- MAX ----
+  max:
+    display_name: "מקס"
+    accounts:
+      - id: "max-0000"
+        label: "מקס ‏0000"
+        match:
+          filename_contains: ["0000"]
+          content_contains: []
+    format:
+      file_types: ["xlsx", "csv"]
+      header_row: null
+      encoding: "auto"
+      columns:
+        date: ["תאריך עסקה", "תאריך"]
+        merchant: ["שם בית העסק", "בית עסק", "תיאור"]
+        amount: ["סכום חיוב", "סכום"]
+        currency: ["מטבע"]
+        notes: ["קטגוריה", "הערות"]
+      date_formats: ["%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"]
+      amount_sign: "expense_positive"
+      debit_column: null
+      credit_column: null
+      skip_rows_containing: ["סה\"כ", 'סה"כ', "סך הכל"]
+    calibration:
+      verified: false
+      verified_on: null
+      sample_row: null
+      note: "PLACEHOLDER — not yet checked against a real file."
+
+  # --------------------------------------------------------------- BANK ----
+  bank:
+    display_name: "עובר ושב"
+    accounts:
+      - id: "bank-0000"
+        label: "חשבון עו\"ש"
+        match:
+          filename_contains: []
+          content_contains: []
+    format:
+      file_types: ["xlsx", "csv"]
+      header_row: null
+      encoding: "auto"
+      columns:
+        date: ["תאריך", "תאריך ערך", "תאריך פעולה"]
+        merchant: ["תיאור", "תיאור פעולה", "פרטים"]
+        amount: ["סכום"]
+        currency: []
+        notes: ["אסמכתא", "יתרה"]
+      date_formats: ["%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"]
+      # Current accounts usually split debit and credit into two columns.
+      amount_sign: "two_columns"
+      debit_column: ["חובה", "חיוב", "משיכה"]
+      credit_column: ["זכות", "הפקדה", "זיכוי"]
+      skip_rows_containing: ["יתרת פתיחה", "יתרת סגירה", "סה\"כ", 'סה"כ']
+    calibration:
+      verified: false
+      verified_on: null
+      sample_row: null
+      note: "PLACEHOLDER — not yet checked against a real file."

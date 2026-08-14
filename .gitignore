@@ -1,0 +1,14 @@
+# Raw statements and anything derived from them never enters git.
+inbox/*
+!inbox/README.md
+!inbox/*/
+inbox/*/*
+!inbox/*/.gitkeep
+!inbox/*/README.md
+
+data/
+reports/
+
+__pycache__/
+*.pyc
+.venv/

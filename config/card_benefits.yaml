@@ -1,0 +1,28 @@
+# Earn-back benefits per card. While this file is empty the optimisation report
+# is skipped.
+#
+# rate            fraction returned, e.g. 0.02 for 2%
+# unit            "cash" | "points" | "miles"
+# point_value     ILS per point/mile — only needed when unit is not "cash"
+# monthly_cap     max ILS returned per month, null for uncapped
+# category_rates  per-category override; names must match config/categories.yaml
+#
+# Example of a filled-in card:
+#
+#   cal-1234:
+#     label: "כאל 1234"
+#     base:
+#       rate: 0.01
+#       unit: "cash"
+#       point_value: null
+#       monthly_cap: null
+#     category_rates:
+#       "סופר ומכולת": 0.03
+#       "דלק ותחבורה": 0.05
+
+version: 1
+
+cards: {}
+
+# Set to true once the user has been asked. Keeps the pipeline from asking twice.
+asked: false
