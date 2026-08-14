@@ -1,0 +1,42 @@
+# מיפוי עמודות פר-מקור — נבנה אוטומטית בפעם הראשונה שכל מקור מעובד.
+#
+# הקובץ ריק בכוונה. בפעם הראשונה ש-Claude Code רואה קובץ ממקור מסוים,
+# הוא פותח אותו, מזהה את המבנה, וכותב לכאן בלוק כמו הדוגמה שבהערה למטה.
+# מהרגע הזה והלאה העיבוד של אותו מקור אוטומטי לחלוטין, בלי שאלות.
+#
+# --- סכימת המיפוי (כל שדה) ---
+#
+# <source>:
+#   header_row: 0              # אינדקס השורה (0-based) שבה יושבות הכותרות בקובץ הגולמי.
+#                              # אקספורטים ישראליים נוטים לכלול שורות מטא-דאטה למעלה.
+#   encoding: utf-8            # utf-8 / utf-8-sig / cp1255  (רלוונטי ל-CSV בלבד)
+#   sheet: 0                   # שם או אינדקס הגיליון (xlsx בלבד)
+#   date_column: "תאריך עסקה"
+#   description_column: "שם בית עסק"
+#
+#   # אפשרות א' — עמודת סכום יחידה:
+#   amount_column: "סכום חיוב"
+#   expense_positive: true     # ‼️ קריטי. true = מספר חיובי בעמודה מייצג הוצאה.
+#                              # תמיד לאמת מול שורה שידוע בוודאות אם היא הכנסה או הוצאה.
+#
+#   # אפשרות ב' — עמודות חובה/זכות נפרדות (במקום amount_column):
+#   amount_debit_column: "חובה"
+#   amount_credit_column: "זכות"
+#
+#   date_format: "%d/%m/%Y"    # אופציונלי. אם מושמט — זיהוי אוטומטי בהעדפת dayfirst.
+#   currency: ILS
+#   account: otzar-hahayal     # שם חשבון ברירת מחדל (ניתן לדריסה עם --account)
+#   skip_if_description_empty: true
+#
+# --- דוגמה מלאה (מוערת, לא פעילה) ---
+#
+# otzar-hahayal:
+#   header_row: 6
+#   encoding: cp1255
+#   date_column: "תאריך"
+#   description_column: "תיאור הפעולה"
+#   amount_debit_column: "חובה"
+#   amount_credit_column: "זכות"
+#   date_format: "%d/%m/%y"
+#   currency: ILS
+#   account: otzar-hahayal
