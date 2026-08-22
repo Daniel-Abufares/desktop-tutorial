@@ -16,12 +16,28 @@ import sys
 import pandas as pd
 
 from common import REPORTS_DIR, load_ledger, month_key
-from render import bars, card, esc, money, page, table, tiles
+from render import (
+    card,
+    chart_card,
+    esc,
+    head,
+    money,
+    money_html,
+    page,
+    searchable_table,
+    table,
+    tiles,
+)
 
 ANOMALY_THRESHOLD = 0.30
 HISTORY_MONTHS = 6
 MIN_HISTORY = 2
 MIN_AMOUNT = 100.0  # מתחת לזה סטייה באחוזים היא רעש
+NAV_MONTHS = 6
+
+ACCENT_INCOME = "#1baf7a"
+ACCENT_EXPENSE = "#eb6834"
+ACCENT_NET = "#2a78d6"
 
 
 def expenses_by(df: pd.DataFrame, column: str) -> list[tuple[str, float]]:
@@ -70,35 +86,82 @@ def find_anomalies(ledger: pd.DataFrame, month: str) -> list[dict]:
     return sorted(results, key=lambda r: abs(r["delta"]), reverse=True)
 
 
-def build_month(ledger: pd.DataFrame, month: str) -> dict:
+def nav_for(month: str, all_months: list[str]) -> list[tuple[str, str, bool]]:
+    """קישורים לחודשים האחרונים + לדוח השנתי, בנתיבים יחסיים."""
+    recent = all_months[-NAV_MONTHS:]
+    links = [(m, f"../{m}/dashboard.html", m == month) for m in recent]
+    years = sorted({m[:4] for m in all_months})
+    if years:
+        links.append(("|", "", False))
+        for year in years[-2:]:
+            links.append((f"שנתי {year}", f"../annual/{year}/annual-report.html", False))
+    return links
+
+
+def delta_note(current: float, previous: float | None, rising_is_good: bool) -> str:
+    """חיווי שינוי מול החודש הקודם — צבע לפי משמעות, לא לפי כיוון."""
+    if previous is None or previous == 0:
+        return ""
+    change = (current - previous) / abs(previous) * 100
+    if abs(change) < 0.5:
+        return '<span class="flag">≈ כמו בחודש שעבר</span>'
+    improved = (change > 0) == rising_is_good
+    arrow = "▲" if change > 0 else "▼"
+    return (
+        f'<span class="flag {"down" if improved else "up"}">{arrow} {abs(change):.0f}%</span>'
+        " מהחודש הקודם"
+    )
+
+
+def build_month(ledger: pd.DataFrame, month: str, all_months: list[str]) -> dict:
     month_df = ledger[ledger["month"] == month]
     income = float(month_df[month_df["amount"] > 0]["amount"].sum())
     expense = float(-month_df[month_df["amount"] < 0]["amount"].sum())
     net = income - expense
-    anomalies = find_anomalies(ledger, month)
 
+    index = all_months.index(month)
+    previous = all_months[index - 1] if index > 0 else None
+    if previous:
+        prev_df = ledger[ledger["month"] == previous]
+        p_income = float(prev_df[prev_df["amount"] > 0]["amount"].sum())
+        p_expense = float(-prev_df[prev_df["amount"] < 0]["amount"].sum())
+        p_net = p_income - p_expense
+    else:
+        p_income = p_expense = p_net = None
+
+    anomalies = find_anomalies(ledger, month)
     by_category = expenses_by(month_df, "category")
     by_account = expenses_by(month_df, "account")
-    top = (
-        month_df[month_df["amount"] < 0]
-        .nsmallest(12, "amount")[["date", "description", "account", "amount"]]
-        .values.tolist()
-    )
 
+    accounts = sorted(month_df["account"].dropna().unique())
     body = [
-        f"<h1>דשבורד חודשי — {esc(month)}</h1>",
-        f'<p class="sub">{len(month_df)} תנועות · '
-        f'{len(month_df["account"].unique())} חשבונות</p>',
+        head(
+            f"דשבורד חודשי — {month}",
+            f"{len(month_df)} תנועות · {len(accounts)} חשבונות · {', '.join(accounts)}",
+        ),
         tiles(
             [
-                ("הכנסות", money(income), "pos", ""),
-                ("הוצאות", money(expense), "neg", ""),
-                (
-                    "נטו",
-                    money(net),
-                    "pos" if net >= 0 else "neg",
-                    "עודף" if net >= 0 else "גירעון",
-                ),
+                {
+                    "label": "הכנסות",
+                    "amount": income,
+                    "cls": "pos",
+                    "accent": ACCENT_INCOME,
+                    "note": delta_note(income, p_income, True),
+                },
+                {
+                    "label": "הוצאות",
+                    "amount": expense,
+                    "cls": "neg",
+                    "accent": ACCENT_EXPENSE,
+                    "note": delta_note(expense, p_expense, False),
+                },
+                {
+                    "label": "נטו",
+                    "amount": net,
+                    "cls": "pos" if net >= 0 else "neg",
+                    "accent": ACCENT_NET,
+                    "note": delta_note(net, p_net, True) or ("עודף" if net >= 0 else "גירעון"),
+                },
             ]
         ),
     ]
@@ -112,38 +175,50 @@ def build_month(ledger: pd.DataFrame, month: str) -> dict:
             rows.append(
                 [
                     esc(item["category"]),
-                    money(item["current"]),
-                    money(item["average"]),
-                    f'<span class="flag {direction}">{arrow} {abs(item["delta"]) * 100:.0f}% {word} לממוצע</span>',
+                    money_html(item["current"], sort_key=True),
+                    money_html(item["average"]),
+                    f'<span class="flag {direction}">{arrow} {abs(item["delta"]) * 100:.0f}%'
+                    f" {word} לממוצע</span>",
                 ]
             )
         body.append(
             card(
-                "חריגות מול הממוצע ההיסטורי",
+                f"חריגות מול הממוצע ההיסטורי ({anomalies[0]['months']} חודשים אחורה)",
                 table(["קטגוריה", "החודש", "ממוצע", "סטייה"], rows),
             )
         )
 
-    body.append(card("הוצאות לפי קטגוריה", bars(by_category)))
-    body.append(card("הוצאות לפי חשבון/כרטיס", bars(by_account)))
+    body.append(chart_card("הוצאות לפי קטגוריה", by_category, unit="הוצאה"))
+    body.append(chart_card("הוצאות לפי חשבון/כרטיס", by_account, unit="הוצאה"))
+
+    ledger_rows = []
+    for _, row in month_df.sort_values("amount").iterrows():
+        amount = float(row["amount"])
+        sign_class = "neg" if amount < 0 else "pos"
+        ledger_rows.append(
+            [
+                f'<span data-sort="{esc(row["date"])}">{esc(row["date"])}</span>',
+                esc(row["description"]),
+                f'<span class="chip">{esc(row["category"])}</span>',
+                esc(row["account"]),
+                f'<span class="{sign_class}">{money_html(amount, sort_key=True)}</span>',
+            ]
+        )
     body.append(
-        card(
-            "התנועות הגדולות בחודש",
-            table(
-                ["תאריך", "תיאור", "חשבון", "סכום"],
-                [
-                    [esc(d), esc(desc), esc(acct), money(abs(amt))]
-                    for d, desc, acct, amt in top
-                ],
-                numeric_from=3,
-            ),
+        searchable_table(
+            "כל התנועות בחודש",
+            ["תאריך", "תיאור", "קטגוריה", "חשבון", "סכום"],
+            ledger_rows,
+            table_id="tx",
+            numeric_from=4,
         )
     )
 
     out_dir = REPORTS_DIR / month
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "dashboard.html").write_text(
-        page(f"דשבורד {month}", "\n".join(body)), encoding="utf-8"
+        page(f"דשבורד {month}", "\n".join(body), nav_for(month, all_months)),
+        encoding="utf-8",
     )
 
     lines = [
@@ -203,7 +278,7 @@ def main() -> int:
         if month not in months:
             print(f"אין תנועות לחודש {month}.")
             continue
-        result = build_month(ledger, month)
+        result = build_month(ledger, month, months)
         print(
             f"✓ {month}: הכנסות {money(result['income'])} | "
             f"הוצאות {money(result['expense'])} | נטו {money(result['net'])}"

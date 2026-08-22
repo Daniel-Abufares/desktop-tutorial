@@ -15,7 +15,12 @@ import sys
 import pandas as pd
 
 from common import REPORTS_DIR, load_ledger, month_key
-from render import bars, card, esc, money, page, table, tiles, trend
+from render import card, chart_card, esc, head, money, money_html, page, table, tiles, trend
+
+NAV_MONTHS = 6
+ACCENT_INCOME = "#1baf7a"
+ACCENT_EXPENSE = "#eb6834"
+ACCENT_NET = "#2a78d6"
 
 
 def year_slice(ledger: pd.DataFrame, year: str) -> pd.DataFrame:
@@ -28,7 +33,19 @@ def totals(df: pd.DataFrame) -> tuple[float, float, float]:
     return income, expense, income - expense
 
 
-def build_year(ledger: pd.DataFrame, year: str) -> dict:
+def nav_for(year: str, all_months: list[str], all_years: list[str]) -> list[tuple[str, str, bool]]:
+    recent = all_months[-NAV_MONTHS:]
+    links = [(m, f"../../{m}/dashboard.html", False) for m in recent]
+    if all_years:
+        links.append(("|", "", False))
+        for other in all_years[-2:]:
+            links.append(
+                (f"שנתי {other}", f"../{other}/annual-report.html", other == year)
+            )
+    return links
+
+
+def build_year(ledger: pd.DataFrame, year: str, all_months: list[str], all_years: list[str]) -> dict:
     df = year_slice(ledger, year)
     income, expense, net = totals(df)
 
@@ -42,24 +59,60 @@ def build_year(ledger: pd.DataFrame, year: str) -> dict:
         m_income, m_expense, _ = totals(month_df)
         months.append((month, m_income, m_expense))
 
-    by_category = (
-        df[df["amount"] < 0].groupby("category")["amount"].sum().abs().sort_values(ascending=False)
-    )
-    by_account = (
-        df[df["amount"] < 0].groupby("account")["amount"].sum().abs().sort_values(ascending=False)
-    )
+    by_category = [
+        (str(k), float(v))
+        for k, v in df[df["amount"] < 0]
+        .groupby("category")["amount"]
+        .sum()
+        .abs()
+        .sort_values(ascending=False)
+        .items()
+    ]
+    by_account = [
+        (str(k), float(v))
+        for k, v in df[df["amount"] < 0]
+        .groupby("account")["amount"]
+        .sum()
+        .abs()
+        .sort_values(ascending=False)
+        .items()
+    ]
 
     active_months = len(months)
-    note = f"ממוצע חודשי: {money(expense / active_months)}" if active_months else ""
-
     body = [
-        f"<h1>דוח שנתי — {esc(year)}</h1>",
-        f'<p class="sub">{len(df)} תנועות · {active_months} חודשים פעילים</p>',
+        head(
+            f"דוח שנתי — {year}",
+            f"{len(df)} תנועות · {active_months} חודשים פעילים",
+        ),
         tiles(
             [
-                ("הכנסות", money(income), "pos", ""),
-                ("הוצאות", money(expense), "neg", note),
-                ("נטו", money(net), "pos" if net >= 0 else "neg", ""),
+                {
+                    "label": "הכנסות",
+                    "amount": income,
+                    "cls": "pos",
+                    "accent": ACCENT_INCOME,
+                    "note": f"ממוצע חודשי: {money_html(income / active_months)}"
+                    if active_months
+                    else "",
+                },
+                {
+                    "label": "הוצאות",
+                    "amount": expense,
+                    "cls": "neg",
+                    "accent": ACCENT_EXPENSE,
+                    "note": f"ממוצע חודשי: {money_html(expense / active_months)}"
+                    if active_months
+                    else "",
+                },
+                {
+                    "label": "נטו",
+                    "amount": net,
+                    "cls": "pos" if net >= 0 else "neg",
+                    "accent": ACCENT_NET,
+                    "note": f"ממוצע חודשי: {money_html(net / active_months)}"
+                    if active_months
+                    else "",
+                },
             ]
         ),
     ]
@@ -85,32 +138,20 @@ def build_year(ledger: pd.DataFrame, year: str) -> dict:
                     f'<span class="flag {"down" if improved else "up"}">'
                     f"{arrow} {abs(delta):.0f}%</span>"
                 )
-            rows.append([esc(label), money(now), money(before), change])
-        body.append(
-            card(
-                f"השוואה ל-{previous}",
-                table([" ", year, previous, "שינוי"], rows),
-            )
-        )
+            rows.append([esc(label), money_html(now), money_html(before), change])
+        body.append(card(f"השוואה ל-{previous}", table([" ", year, previous, "שינוי"], rows)))
 
     body.append(card("מגמה חודשית", trend(months)))
-    body.append(
-        card(
-            "פילוח קטגוריות שנתי",
-            bars([(str(k), float(v)) for k, v in by_category.items()]),
-        )
-    )
-    body.append(
-        card(
-            "הוצאות לפי חשבון/כרטיס",
-            bars([(str(k), float(v)) for k, v in by_account.items()]),
-        )
-    )
+    body.append(chart_card("פילוח קטגוריות שנתי", by_category, unit="הוצאה"))
+    body.append(chart_card("הוצאות לפי חשבון/כרטיס", by_account, unit="הוצאה"))
 
     out_dir = REPORTS_DIR / "annual" / year
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "annual-report.html"
-    path.write_text(page(f"דוח שנתי {year}", "\n".join(body)), encoding="utf-8")
+    path.write_text(
+        page(f"דוח שנתי {year}", "\n".join(body), nav_for(year, all_months, all_years)),
+        encoding="utf-8",
+    )
 
     return {"year": year, "income": income, "expense": expense, "net": net, "path": path}
 
@@ -131,6 +172,7 @@ def main() -> int:
     ledger = ledger[ledger["month"].notna()].copy()
     ledger["year"] = ledger["month"].str[:4]
 
+    all_months = sorted(ledger["month"].unique())
     years = sorted(ledger["year"].unique())
     targets = years if args.all else [args.year or years[-1]]
 
@@ -138,7 +180,7 @@ def main() -> int:
         if year not in years:
             print(f"אין תנועות לשנת {year}.")
             continue
-        result = build_year(ledger, year)
+        result = build_year(ledger, year, all_months, years)
         print(
             f"✓ {year}: הכנסות {money(result['income'])} | "
             f"הוצאות {money(result['expense'])} | נטו {money(result['net'])}"
