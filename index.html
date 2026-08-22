@@ -89,7 +89,8 @@ header{
   max-width:min(340px, calc(100% - 90px))
 }
 #status.show{display:block}
-#status.err{color:#a12; border-color:#e6c4c4;background:#fdf3f3;cursor:pointer}
+#status.err{color:#a12; border-color:#e6c4c4;background:#fdf3f3}
+#status[data-retry="1"]{cursor:pointer}
 
 /* ---------- results panel ---------- */
 #panel{
@@ -327,10 +328,36 @@ var results = [], markers = [], selected = null, meMarker = null, seq = 0;
 var map = L.map('map',{ zoomControl:false, attributionControl:true })
            .setView([32.0853,34.7818], 15);
 L.control.zoom({position:'topleft'}).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-  maxZoom:19, subdomains:'abcd',
-  attribution:'&copy; OpenStreetMap, &copy; CARTO'
-}).addTo(map);
+
+/* רקע המפה: אם השרת הראשון לא עונה עוברים לשני, ואם גם הוא לא —
+   אומרים את זה במקום להשאיר מסך ריק בלי הסבר */
+var TILES = [
+  { url:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    sub:'abcd', attr:'&copy; OpenStreetMap, &copy; CARTO', name:'CARTO' },
+  { url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    sub:'abc',  attr:'&copy; OpenStreetMap', name:'OpenStreetMap' }
+];
+var tileLayer = null, tileIdx = -1, tileFails = 0, tilesEverLoaded = false;
+
+function useTiles(i){
+  if(tileLayer) map.removeLayer(tileLayer);
+  tileIdx = i; tileFails = 0;
+  var t = TILES[i];
+  tileLayer = L.tileLayer(t.url, { maxZoom:19, subdomains:t.sub, attribution:t.attr })
+    .on('tileload', function(){ tilesEverLoaded = true; })
+    .on('tileerror', function(){
+      if(tilesEverLoaded) return;          /* אריח בודד חסר — לא סיבה להחליף שרת */
+      if(++tileFails < 4) return;
+      if(tileIdx + 1 < TILES.length){
+        say('רקע המפה לא נטען מ‑' + TILES[tileIdx].name + ' — עברתי ל‑' + TILES[tileIdx+1].name, false);
+        useTiles(tileIdx + 1);
+      }else{
+        say('רקע המפה לא נטען — בדוק חיבור לאינטרנט', true, false);
+      }
+    })
+    .addTo(map);
+}
+useTiles(0);
 
 /* מרכז החיפוש האחרון — הכפתור "חפש באזור הזה" מופיע רק כשבאמת התרחקנו ממנו,
    כדי שהזזה תכנותית של המפה (איתור מיקום, בחירת מקום) לא תדליק אותו לשווא */
@@ -344,10 +371,12 @@ map.on('moveend', function(){
 
 /* ============ helpers ============ */
 function el(id){ return document.getElementById(id); }
-function say(msg, isErr){
+function say(msg, isErr, retryable){
   var s = el('status');
-  if(!msg){ s.classList.remove('show','err'); s.textContent=''; return; }
-  s.textContent = msg + (isErr ? ' — הקש לניסיון חוזר' : '');
+  if(!msg){ s.classList.remove('show','err'); s.textContent=''; s.dataset.retry=''; return; }
+  if(retryable == null) retryable = !!isErr;   /* שגיאת חיפוש ניתנת לניסיון חוזר, שגיאת רקע לא */
+  s.textContent = msg + (retryable ? ' — הקש לניסיון חוזר' : '');
+  s.dataset.retry = retryable ? '1' : '';
   s.classList.toggle('err', !!isErr);
   s.classList.add('show');
 }
@@ -696,7 +725,7 @@ el('geoform').onsubmit = function(ev){
 
 el('redo').onclick = search;
 /* הודעת שגיאה = כפתור ניסיון חוזר */
-el('status').onclick = function(){ if(this.classList.contains('err')) search(); };
+el('status').onclick = function(){ if(this.dataset.retry) search(); };
 
 /* ============ מגירה במובייל ============ */
 el('grip').onclick = function(){ el('panel').classList.toggle('up'); };
