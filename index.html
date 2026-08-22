@@ -158,12 +158,12 @@ header{
   #detail.show{transform:none}
 }
 
-/* ---------- settings ---------- */
-#settings{
+/* ---------- modals (הגדרות + תכנון יום) ---------- */
+.modal{
   position:fixed;inset:0;z-index:1000;background:rgba(28,43,58,.42);
   display:none;align-items:center;justify-content:center;padding:18px
 }
-#settings.show{display:flex}
+.modal.show{display:flex}
 .sheet{
   background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:460px;
   max-height:86dvh;overflow:auto
@@ -176,12 +176,74 @@ header{
   padding:0 11px;font:inherit;font-size:15px;background:var(--bg);color:var(--ink);
   direction:ltr;text-align:left
 }
+.sheet input[type=date],.sheet input[type=time]{
+  height:42px;border:1px solid var(--line);border-radius:10px;
+  padding:0 11px;font:inherit;font-size:15px;background:var(--bg);color:var(--ink)
+}
+.sheet input[type=date]{width:100%}
+.times{display:flex;align-items:center;gap:8px}
+.times input{flex:1;min-width:0}
+.prefs{display:flex;flex-wrap:wrap;gap:8px}
+.pref{
+  display:flex;align-items:center;gap:6px;border:1px solid var(--line);
+  border-radius:999px;padding:7px 13px;font-size:14.5px;font-weight:600;
+  cursor:pointer;background:var(--bg);color:var(--ink-soft)
+}
+.pref input{display:none}
+.pref.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#perr{color:#a12;font-size:13.5px;margin-top:10px;display:none}
+#perr.show{display:block}
 .sheet input[type=range]{width:100%;accent-color:var(--accent)}
 .sheet .row{display:flex;gap:8px;margin-top:18px}
 .sheet .row button{flex:1;border-radius:10px;padding:12px;font-size:15px;font-weight:600;background:var(--ink);color:#fff}
 .sheet .row button.ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
 .note{font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-top:8px}
 .note a{color:var(--accent)}
+
+/* ---------- מסלול יום ---------- */
+#planview{position:fixed;inset:0;z-index:1300;background:var(--bg);display:none;flex-direction:column}
+#planview.show{display:flex}
+.pv-head{
+  display:flex;align-items:center;gap:8px;
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  background:var(--card);border-bottom:1px solid var(--line);box-shadow:var(--shadow)
+}
+.pv-head h2{margin:0;font-size:18px;flex:1}
+.pv-btn{
+  border:1px solid var(--line);background:var(--bg);border-radius:10px;
+  padding:9px 13px;font-size:14px;font-weight:600;white-space:nowrap
+}
+.pv-btn.solid{background:var(--ink);color:#fff;border-color:var(--ink)}
+#pvsum{
+  padding:12px 16px;font-size:14.5px;color:var(--ink-soft);line-height:1.7;
+  border-bottom:1px solid var(--line);background:var(--card)
+}
+#pvstops{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:14px 16px calc(env(safe-area-inset-bottom) + 26px);
+  width:100%;max-width:560px;margin:0 auto
+}
+.pwalk{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13.5px;margin:10px 10px}
+.pstop{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;display:flex;gap:12px;align-items:flex-start;
+  box-shadow:var(--shadow);cursor:pointer
+}
+.pnum{
+  flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--accent);
+  color:#fff;font-weight:700;display:grid;place-items:center;font-size:14px;margin-top:2px
+}
+.pstop .pt{font-size:13px;color:var(--ink-soft);font-weight:700;direction:ltr;unicode-bidi:isolate}
+.pstop .nm2{font-weight:700;font-size:16px;margin:1px 0 3px;line-height:1.3}
+.pstop .m2{font-size:13.5px;color:var(--ink-soft);line-height:1.5}
+.pstop .warn{font-size:12.5px;color:#a15b12;margin-top:2px}
+.pstop a{color:var(--accent);font-weight:600;font-size:13.5px;text-decoration:none}
+.pvempty{padding:40px 20px;text-align:center;color:var(--ink-soft);line-height:1.7}
+.npin{
+  width:26px;height:26px;border-radius:50%;background:var(--accent);border:2px solid #fff;
+  color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.3)
+}
 
 /* ---------- markers ---------- */
 .pin{
@@ -231,6 +293,7 @@ header{
         <input id="q" type="search" placeholder="חפש עיר או רחוב" autocomplete="off">
       </form>
       <button class="iconbtn" id="locate" title="המיקום שלי" type="button">📍</button>
+      <button class="iconbtn" id="openplan" title="תכנון יום" type="button">🗓️</button>
       <button class="iconbtn" id="opensettings" title="הגדרות" type="button">⚙️</button>
     </div>
     <div class="chips" id="chips"></div>
@@ -263,7 +326,48 @@ header{
   </div>
 </div>
 
-<div id="settings">
+<div id="planner" class="modal">
+  <div class="sheet">
+    <h3>תכנון יום 🗓️</h3>
+    <p>המסלול נבנה סביב מרכז המפה — הזז את המפה או חפש כתובת לפני שאתה בונה.</p>
+
+    <label for="pdate">תאריך</label>
+    <input type="date" id="pdate">
+
+    <label>שעות</label>
+    <div class="times">
+      <input type="time" id="pfrom">
+      <span>עד</span>
+      <input type="time" id="pto">
+    </div>
+
+    <label>מה בא לך לעשות?</label>
+    <div class="prefs" id="pprefs"></div>
+
+    <label for="pradius">רדיוס חיפוש: <span id="prlabel"></span></label>
+    <input type="range" id="pradius" min="300" max="5000" step="100">
+
+    <div id="perr"></div>
+
+    <div class="row">
+      <button class="ghost" id="pcancel" type="button">ביטול</button>
+      <button id="buildplan" type="button">בנה מסלול</button>
+    </div>
+  </div>
+</div>
+
+<div id="planview">
+  <div class="pv-head">
+    <h2>המסלול</h2>
+    <button class="pv-btn" id="pvnew" type="button">מסלול חדש</button>
+    <button class="pv-btn" id="pvclear" type="button">נקה</button>
+    <button class="pv-btn solid" id="pvclose" type="button">למפה ←</button>
+  </div>
+  <div id="pvsum"></div>
+  <div id="pvstops"></div>
+</div>
+
+<div id="settings" class="modal">
   <div class="sheet">
     <h3>הגדרות</h3>
     <p>ברירת מחדל: נתונים חיים מ‑OpenStreetMap — חינם, בלי מפתח, אבל בלי דירוגים.
@@ -404,9 +508,10 @@ function timedFetch(url, opt, ms, label){
     clearTimeout(timer); return r;
   }, function(e){
     clearTimeout(timer);
+    /* לא כותבים "אין אינטרנט" — כשל fetch יכול להיות גם שרת ספציפי שנפל או נחסם */
     throw new Error(e && e.name === 'AbortError'
       ? label + ' לא ענה תוך ' + Math.round(ms/1000) + ' שניות'
-      : 'אין חיבור לאינטרנט');
+      : 'החיבור אל ' + label + ' נכשל');
   });
 }
 
@@ -432,6 +537,15 @@ CATS.forEach(function(c){
 });
 
 /* ============ מקורות נתונים ============ */
+
+/* השרת הראשי של Overpass עמוס לעיתים קרובות ולפעמים חסום ברשתות מסוימות —
+   מנסים כמה שרתים לפי הסדר לפני שמוותרים */
+var OSM_HOSTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter'
+];
+
 function fetchOSM(lat,lon,r,c){
   var parts = [];
   c.osm.forEach(function(f){
@@ -439,15 +553,24 @@ function fetchOSM(lat,lon,r,c){
     parts.push('way['+f+'](around:'+r+','+lat+','+lon+');');
   });
   var q = '[out:json][timeout:25];('+parts.join('')+');out center 200;';
-  return timedFetch('https://overpass-api.de/api/interpreter',{
-      method:'POST', body:'data='+encodeURIComponent(q),
-      headers:{'Content-Type':'application/x-www-form-urlencoded'}
-    }, 20000, 'שרת המפות')
-    .then(function(res){
-      if(res.status === 429 || res.status === 504) throw new Error('שרת המפות עמוס, נסה שוב בעוד רגע');
-      if(!res.ok) throw new Error('שרת המפות החזיר שגיאה ' + res.status);
-      return res.json();
-    })
+  var body = 'data='+encodeURIComponent(q);
+
+  function attempt(i, lastErr){
+    if(i >= OSM_HOSTS.length)
+      return Promise.reject(new Error('שרתי המקומות לא ענו (' + clip(lastErr) + ')'));
+    return timedFetch(OSM_HOSTS[i], {
+        method:'POST', body:body,
+        headers:{'Content-Type':'application/x-www-form-urlencoded'}
+      }, 14000, 'שרת המקומות')
+      .then(function(res){
+        if(res.status === 429 || res.status === 504) throw new Error('עמוס ('+res.status+')');
+        if(!res.ok) throw new Error('שגיאה '+res.status);
+        return res.json();
+      })
+      .catch(function(err){ return attempt(i+1, err.message); });
+  }
+
+  return attempt(0, '')
     .then(function(d){
       var out = [], seen = {};
       (d.elements||[]).forEach(function(e){
@@ -464,6 +587,7 @@ function fetchOSM(lat,lon,r,c){
         out.push({
           src:'osm', id:e.type+e.id, name:name,
           lat:la, lon:lo, rating:null, reviews:null, openNow:null,
+          hoursCk: parseOH(t.opening_hours),
           addr:[street, t['addr:city']].filter(Boolean).join(', '),
           kind:t.cuisine||t.amenity||t.leisure||t.tourism||'',
           mapsUrl:'https://www.google.com/maps/search/?api=1&query='+
@@ -482,6 +606,7 @@ function fetchGoogle(lat,lon,r,c,key){
         'X-Goog-Api-Key':key,
         'X-Goog-FieldMask':'places.id,places.displayName,places.rating,places.userRatingCount,' +
           'places.location,places.shortFormattedAddress,places.currentOpeningHours.openNow,' +
+          'places.regularOpeningHours.periods,' +
           'places.googleMapsUri,places.priceLevel,places.primaryTypeDisplayName'
       },
       body: JSON.stringify({
@@ -509,6 +634,7 @@ function fetchGoogle(lat,lon,r,c,key){
           reviews:p.userRatingCount!=null?p.userRatingCount:null,
           openNow:(p.currentOpeningHours&&typeof p.currentOpeningHours.openNow==='boolean')
                     ? p.currentOpeningHours.openNow : null,
+          hoursCk: gOpenChecker(p.regularOpeningHours && p.regularOpeningHours.periods),
           addr:p.shortFormattedAddress||'',
           kind:(p.primaryTypeDisplayName&&p.primaryTypeDisplayName.text)||'',
           price:p.priceLevel||null,
@@ -698,29 +824,46 @@ function locate(){
     }).addTo(map);
     map.setView([la,lo], 16);
     search();
-  }, function(){
-    say('לא הצלחתי לאתר מיקום — חפש עיר או הזז את המפה', true);
+  }, function(err){
+    say(err && err.code === 1
+      ? 'הרשאת המיקום חסומה בדפדפן — אפשר אותה, או חפש כתובת'
+      : 'לא הצלחתי לאתר מיקום — חפש עיר או הזז את המפה', true, false);
     search();
   }, { enableHighAccuracy:true, timeout:9000, maximumAge:120000 });
 }
 el('locate').onclick = locate;
 
 /* ============ חיפוש כתובת ============ */
+/* גיאוקודינג עם גיבוי: Nominatim ראשי, Photon אם הוא לא זמין */
+function geocode(q){
+  return timedFetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=he&q=' +
+             encodeURIComponent(q), null, 10000, 'חיפוש הכתובת')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ return d.length ? {lat:+d[0].lat, lon:+d[0].lon} : null; })
+    .catch(function(){
+      return timedFetch('https://photon.komoot.io/api/?limit=1&q=' + encodeURIComponent(q),
+                        null, 10000, 'חיפוש הכתובת')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          var f = d.features && d.features[0];
+          return f ? {lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0]} : null;
+        });
+    });
+}
+
 el('geoform').onsubmit = function(ev){
   ev.preventDefault();
   var q = el('q').value.trim();
   if(!q) return;
   el('q').blur();
   say('מחפש כתובת…');
-  timedFetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=he&q=' +
-             encodeURIComponent(q), null, 12000, 'חיפוש הכתובת')
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(!d.length){ say('לא מצאתי את "' + q + '"', true); return; }
-      map.setView([+d[0].lat, +d[0].lon], 15);
+  geocode(q)
+    .then(function(pt){
+      if(!pt){ say('לא מצאתי את "' + q + '"', true, false); return; }
+      map.setView([pt.lat, pt.lon], 15);
       search();
     })
-    .catch(function(err){ say(err.message, true); });
+    .catch(function(err){ say(err.message, true, false); });
 };
 
 el('redo').onclick = search;
@@ -751,6 +894,368 @@ el('clearfav').onclick = function(){
   cfg.favs = {}; save(); render();
 };
 el('settings').onclick = function(ev){ if(ev.target === this) this.classList.remove('show'); };
+
+/* ============ תכנון יום ============ */
+
+/* --- שעות פתיחה: OSM (מחרוזת opening_hours) --- */
+function parseOH(s){
+  if(!s) return null;
+  s = String(s).trim().toLowerCase();
+  var DAYS = {su:0,mo:1,tu:2,we:3,th:4,fr:5,sa:6};
+  try{
+    var table = [[],[],[],[],[],[],[]];
+    s.split(';').forEach(function(rule){
+      rule = rule.trim(); if(!rule) return;
+      if(rule === '24/7'){ for(var d=0; d<7; d++) table[d] = [[0,1440]]; return; }
+      var m = rule.match(/^((?:(?:mo|tu|we|th|fr|sa|su|ph)(?:\s*[-,]\s*(?:mo|tu|we|th|fr|sa|su|ph))*)\s+)?(.+)$/);
+      if(!m) throw 0;
+      var dl = [];
+      if(!m[1]){ dl = [0,1,2,3,4,5,6]; }
+      else{
+        m[1].trim().split(',').forEach(function(tok){
+          tok = tok.trim();
+          var r = tok.split('-').map(function(x){ return x.trim(); });
+          if(r.length === 2 && DAYS[r[0]] != null && DAYS[r[1]] != null){
+            for(var d = DAYS[r[0]]; ; d = (d+1)%7){ dl.push(d); if(d === DAYS[r[1]]) break; }
+          }else if(DAYS[tok] != null) dl.push(DAYS[tok]);
+          /* ph (חגים) — מתעלמים */
+        });
+        if(!dl.length) throw 0;
+      }
+      var spans = [];
+      var tp = m[2].trim();
+      if(tp !== 'off' && tp !== 'closed'){
+        tp.split(',').forEach(function(tr){
+          var tm = tr.trim().match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+          if(!tm) throw 0;
+          spans.push([ +tm[1]*60 + +tm[2], +tm[3]*60 + +tm[4] ]);
+        });
+      }
+      dl.forEach(function(d){ table[d] = spans.slice(); });
+    });
+    return function(day, min){
+      var i, sp = table[day];
+      for(i=0;i<sp.length;i++){
+        if(sp[i][1] > sp[i][0]){ if(min >= sp[i][0] && min < sp[i][1]) return true; }
+        else if(min >= sp[i][0]) return true;             /* נסגר אחרי חצות — צד הערב */
+      }
+      var pd = table[(day+6)%7];
+      for(i=0;i<pd.length;i++)
+        if(pd[i][1] <= pd[i][0] && min < pd[i][1]) return true;  /* צד הבוקר של אתמול */
+      return false;
+    };
+  }catch(e){ return null; }
+}
+
+/* --- שעות פתיחה: Google (regularOpeningHours.periods) --- */
+function gOpenChecker(periods){
+  if(!periods || !periods.length) return null;
+  if(periods.length === 1 && periods[0].open && !periods[0].close)
+    return function(){ return true; };                     /* פתוח 24/7 */
+  var iv = [];
+  periods.forEach(function(pr){
+    if(!pr.open || !pr.close) return;
+    var s = pr.open.day*1440 + (pr.open.hour||0)*60 + (pr.open.minute||0);
+    var e = pr.close.day*1440 + (pr.close.hour||0)*60 + (pr.close.minute||0);
+    if(e <= s) e += 10080;
+    iv.push([s,e]);
+  });
+  if(!iv.length) return null;
+  return function(day, min){
+    var t = day*1440 + min;
+    for(var i=0;i<iv.length;i++)
+      if((t >= iv[i][0] && t < iv[i][1]) || (t+10080 >= iv[i][0] && t+10080 < iv[i][1])) return true;
+    return false;
+  };
+}
+
+/* --- מזג אוויר: Open-Meteo, חינם בלי מפתח --- */
+function fetchWeather(lat, lon, dateStr){
+  return timedFetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
+      '&hourly=temperature_2m,precipitation_probability,weather_code,is_day'+
+      '&start_date='+dateStr+'&end_date='+dateStr+'&timezone=auto', null, 10000, 'שירות מזג האוויר')
+    .then(function(r){ if(!r.ok) throw new Error('מזג אוויר '+r.status); return r.json(); })
+    .then(function(d){
+      var h = d.hourly || {};
+      if(!h.temperature_2m || !h.temperature_2m.length) throw new Error('אין תחזית');
+      return { temp:h.temperature_2m, prob:h.precipitation_probability||[],
+               code:h.weather_code||[], isday:h.is_day||[] };
+    });
+}
+function wIcon(code){
+  if(code == null) return '';
+  if(code === 0) return '☀️';
+  if(code <= 2) return '🌤️';
+  if(code === 3) return '☁️';
+  if(code <= 48) return '🌫️';
+  if(code <= 67) return '🌧️';
+  if(code <= 77) return '❄️';
+  if(code <= 82) return '🌦️';
+  return '⛈️';
+}
+
+/* --- בניית המסלול --- */
+var PLAN_DUR = { coffee:45, food:75, bar:75, fun:90, sit:40 };
+
+function buildPlan(places, w, o){
+  /* o: {day, start, end (דקות), prefs[], center{lat,lng}} */
+  function rain(h){ return w ? (w.prob[h]||0) >= 45 : false; }
+  function daylight(h){ return w ? w.isday[h] === 1 : (h >= 7 && h < 19); }
+  function openState(p, m){
+    return p.hoursCk ? p.hoursCk(o.day, ((m%1440)+1440)%1440) : null;
+  }
+
+  var byCat = {};
+  places.forEach(function(p){ (byCat[p.cat] = byCat[p.cat] || []).push(p); });
+
+  var uses = {}, used = {}, hadLunch = false, hadDinner = false, lastCat = null;
+  var t = o.start, pos = o.center, stops = [], guard = 0;
+
+  function catOrder(t){
+    var list = [], h = t/60;
+    var lunchW  = t >= 660  && t <= 900;    /* 11:00–15:00 */
+    var dinnerW = t >= 1080 && t <= 1290;   /* 18:00–21:30 */
+    if(o.prefs.indexOf('food') > -1 && ((lunchW && !hadLunch) || (dinnerW && !hadDinner)))
+      list.push('food');
+    var rest = o.prefs.filter(function(c){
+      if(c === 'food') return false;
+      if(c === 'coffee' && (t < 420 || t > 1050 || (uses.coffee||0) >= 2)) return false;
+      if(c === 'sit'    && (!daylight(Math.floor(h)) || rain(Math.floor(h)))) return false;
+      if(c === 'bar'    && t < 1020) return false;
+      if(c === 'fun'    && (t < 600 || t > 1290)) return false;
+      return true;
+    });
+    rest.sort(function(a,b){ return (uses[a]||0) - (uses[b]||0); });
+    if(lastCat) rest = rest.filter(function(c){ return c !== lastCat; })
+                          .concat(rest.filter(function(c){ return c === lastCat; }));
+    return list.concat(rest);
+  }
+
+  function pick(cat){
+    var pool = byCat[cat] || [], best = null, bestV = -1e9, bu = null, buV = -1e9;
+    for(var i=0;i<pool.length;i++){
+      var p = pool[i];
+      if(used[keyOf(p)]) continue;
+      var d = dist(pos.lat, pos.lng, p.lat, p.lon);
+      if(d > 2600) continue;
+      var walk = Math.round(d/80);            /* ~80 מ׳ לדקה ברגל */
+      var arr = t + walk;
+      var s1 = openState(p, arr);
+      if(s1 === false) continue;
+      var s2 = openState(p, arr + Math.round(PLAN_DUR[cat]*0.75));
+      if(s2 === false) continue;
+      var v = (p.rating != null ? score(p) : 3.6) - (d/1000)*0.9;
+      if(s1 === true){ if(v > bestV){ bestV = v; best = {p:p, d:d, walk:walk}; } }
+      else           { if(v > buV) { buV = v;  bu   = {p:p, d:d, walk:walk, unknown:true}; } }
+    }
+    return best || bu;
+  }
+
+  while(t + 30 <= o.end && stops.length < 10 && guard++ < 48){
+    var order = catOrder(t), found = null, cat = null;
+    for(var ci=0; ci<order.length && !found; ci++){
+      cat = order[ci];
+      found = pick(cat);
+    }
+    if(!found){ t += 30; continue; }
+    var arrive = t + found.walk;
+    if(arrive + Math.round(PLAN_DUR[cat]*0.6) > o.end) break;
+    var leave = Math.min(arrive + PLAN_DUR[cat], o.end);
+    stops.push({ p:found.p, cat:cat, walkM:found.d, walkMin:found.walk,
+                 arrive:arrive, leave:leave, unknown:!!found.unknown });
+    used[keyOf(found.p)] = 1;
+    uses[cat] = (uses[cat]||0) + 1;
+    if(cat === 'food'){ if(arrive <= 960) hadLunch = true; else hadDinner = true; }
+    lastCat = cat;
+    t = leave + 5;                             /* רגע נשימה בין תחנות */
+    pos = { lat:found.p.lat, lng:found.p.lon };
+  }
+  return stops;
+}
+
+/* --- ממשק המתכנן --- */
+var plan = null;
+var planLayer = L.layerGroup().addTo(map);
+
+var ppre = el('pprefs');
+CATS.forEach(function(c){
+  var lb = document.createElement('label');
+  lb.className = 'pref'; lb.dataset.id = c.id;
+  lb.innerHTML = '<input type="checkbox" value="'+c.id+'">'+c.em+' '+c.name;
+  lb.querySelector('input').onchange = function(){ lb.classList.toggle('on', this.checked); };
+  ppre.appendChild(lb);
+});
+
+function fmtT(m){
+  m = ((m%1440)+1440)%1440;
+  return ('0'+Math.floor(m/60)).slice(-2) + ':' + ('0'+(m%60)).slice(-2);
+}
+function toMin(v){ var a = v.split(':'); return +a[0]*60 + +a[1]; }
+function prlabel(){
+  var v = +el('pradius').value;
+  el('prlabel').textContent = v >= 1000 ? (v/1000).toFixed(1)+' ק״מ' : v+' מ׳';
+}
+el('pradius').oninput = prlabel;
+
+function openPlanner(){
+  var now = new Date();
+  el('pdate').value = now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2);
+  var pp = cfg.pp || {};
+  var from = pp.from;
+  if(!from){
+    var m = now.getHours()*60 + now.getMinutes();
+    m = Math.min(Math.max(Math.ceil(m/30)*30, 8*60), 20*60);
+    from = fmtT(m);
+  }
+  el('pfrom').value = from;
+  el('pto').value = pp.to || '21:00';
+  el('pradius').value = cfg.radius; prlabel();
+  var def = pp.prefs || ['coffee','food','sit','fun'];
+  [].forEach.call(ppre.children, function(lb){
+    var on = def.indexOf(lb.dataset.id) > -1;
+    lb.querySelector('input').checked = on;
+    lb.classList.toggle('on', on);
+  });
+  el('perr').classList.remove('show');
+  el('planner').classList.add('show');
+}
+
+el('openplan').onclick = function(){
+  if(plan) el('planview').classList.add('show');
+  else openPlanner();
+};
+el('pcancel').onclick = function(){ el('planner').classList.remove('show'); };
+el('planner').onclick = function(ev){ if(ev.target === this) this.classList.remove('show'); };
+el('pvclose').onclick = function(){ el('planview').classList.remove('show'); };
+el('pvnew').onclick = function(){ el('planview').classList.remove('show'); openPlanner(); };
+el('pvclear').onclick = function(){
+  plan = null; planLayer.clearLayers();
+  el('planview').classList.remove('show');
+};
+
+function perr(msg){ var e = el('perr'); e.textContent = msg; e.classList.add('show'); }
+
+el('buildplan').onclick = function(){
+  var date = el('pdate').value;
+  var prefs = [].map.call(ppre.querySelectorAll('input:checked'), function(i){ return i.value; });
+  if(!date){ perr('בחר תאריך'); return; }
+  if(!prefs.length){ perr('בחר לפחות קטגוריה אחת'); return; }
+  var start = toMin(el('pfrom').value || '10:00'), end = toMin(el('pto').value || '21:00');
+  if(end - start < 60){ perr('צריך לפחות שעה בין ההתחלה לסוף'); return; }
+  var today = new Date(); today.setHours(0,0,0,0);
+  if(new Date(date+'T12:00:00') < today){ perr('התאריך כבר עבר'); return; }
+
+  cfg.radius = +el('pradius').value;
+  cfg.pp = { from:el('pfrom').value, to:el('pto').value, prefs:prefs };
+  save();
+  el('planner').classList.remove('show');
+  say('בונה מסלול…');
+
+  var ctr = map.getCenter(), r = cfg.radius;
+  var day = new Date(date+'T12:00:00').getDay();
+  var jobs = prefs.map(function(id){
+    var c = cat(id);
+    return (cfg.key ? fetchGoogle(ctr.lat, ctr.lng, r, c, cfg.key) : fetchOSM(ctr.lat, ctr.lng, r, c))
+      .then(function(list){ list.forEach(function(p){ p.cat = id; }); return list; })
+      .catch(function(){ return []; });      /* קטגוריה שנכשלה לא מפילה את כל המסלול */
+  });
+  jobs.push(fetchWeather(ctr.lat, ctr.lng, date).catch(function(){ return null; }));
+
+  Promise.all(jobs).then(function(res){
+    var w = res.pop();
+    var all = [], seen = {};
+    res.forEach(function(list){
+      list.forEach(function(p){
+        var k = keyOf(p);
+        if(seen[k]) return;
+        seen[k] = 1; all.push(p);
+      });
+    });
+    if(!all.length){
+      say('לא נמצאו מקומות באזור — הגדל רדיוס או הזז את המפה', true, false);
+      return;
+    }
+    var stops = buildPlan(all, w, { day:day, start:start, end:end, prefs:prefs, center:ctr });
+    plan = { stops:stops, date:date, day:day, start:start, end:end, weather:w, center:ctr };
+    window.__plan = plan;
+    say('');
+    renderPlan();
+  });
+};
+
+function renderPlan(){
+  var pv = el('pvstops'), sum = el('pvsum');
+  planLayer.clearLayers();
+  pv.innerHTML = '';
+
+  /* כותרת: תאריך + טווח + מזג אוויר */
+  var d = new Date(plan.date+'T12:00:00');
+  var head = d.toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'numeric' }) +
+             ' · <span style="direction:ltr;unicode-bidi:isolate">' + fmtT(plan.start) + '–' + fmtT(plan.end) + '</span>';
+  var w = plan.weather;
+  if(w){
+    var h0 = Math.floor(plan.start/60), h1 = Math.min(23, Math.ceil(plan.end/60));
+    var temps = w.temp.slice(h0, h1+1).filter(function(x){ return x != null; });
+    var probs = w.prob.slice(h0, h1+1);
+    var maxProb = Math.max.apply(null, probs.concat([0]));
+    var midCode = w.code[Math.floor((h0+h1)/2)];
+    head += ' · ' + Math.round(Math.min.apply(null,temps)) + '°–' +
+            Math.round(Math.max.apply(null,temps)) + '° ' + wIcon(midCode);
+    if(maxProb >= 45) head += ' · ☔ צפוי גשם — המסלול מעדיף מקומות סגורים';
+  }else{
+    head += ' · תחזית לא זמינה';
+  }
+  sum.innerHTML = head;
+
+  if(!plan.stops.length){
+    pv.innerHTML = '<div class="pvempty">לא מצאתי מקומות פתוחים בשעות האלה.<br>נסה רדיוס גדול יותר, שעות אחרות או קטגוריות נוספות.</div>';
+    el('planview').classList.add('show');
+    return;
+  }
+
+  var pts = [];
+  plan.stops.forEach(function(s, i){
+    var c = cat(s.cat), p = s.p;
+    pts.push([p.lat, p.lon]);
+
+    L.marker([p.lat, p.lon], {
+      icon: L.divIcon({ className:'', html:'<div class="npin">'+(i+1)+'</div>', iconSize:[26,26], iconAnchor:[13,13] })
+    }).addTo(planLayer);
+
+    var walkTxt = i === 0 ? 'יציאה מנקודת ההתחלה' :
+      '🚶 ' + fmtDist(s.walkM) + ' · ~' + Math.max(1, s.walkMin) + ' דק׳ הליכה';
+    var wk = document.createElement('div');
+    wk.className = 'pwalk'; wk.textContent = walkTxt;
+    pv.appendChild(wk);
+
+    var row = document.createElement('div');
+    row.className = 'pstop';
+    var meta = [];
+    if(p.rating != null) meta.push('★ ' + p.rating.toFixed(1) +
+        (p.reviews != null ? ' ('+p.reviews.toLocaleString('he-IL')+')' : ''));
+    if(p.addr) meta.push(esc(p.addr));
+    row.innerHTML =
+      '<div class="pnum">'+(i+1)+'</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="pt">'+fmtT(s.arrive)+'–'+fmtT(s.leave)+'</div>' +
+        '<div class="nm2">'+c.em+' '+esc(p.name)+'</div>' +
+        '<div class="m2">'+meta.join(' · ')+'</div>' +
+        (s.unknown ? '<div class="warn">⚠️ שעות הפתיחה לא ידועות — כדאי לוודא</div>' : '') +
+        '<a href="https://waze.com/ul?ll='+p.lat+','+p.lon+'&navigate=yes" target="_blank" rel="noopener">ניווט ב־Waze</a>' +
+      '</div>';
+    row.onclick = function(ev){
+      if(ev.target.tagName === 'A') return;
+      el('planview').classList.remove('show');
+      map.setView([p.lat, p.lon], 17, { animate:true });
+    };
+    pv.appendChild(row);
+  });
+
+  L.polyline(pts, { color:'#b4531f', weight:3, dashArray:'6 6', opacity:.85 }).addTo(planLayer);
+  if(pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(0.25));
+
+  el('planview').classList.add('show');
+}
 
 /* ============ go ============ */
 rlabel();
