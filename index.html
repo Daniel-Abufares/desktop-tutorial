@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1c2b3a">
 <title>איפה מבלים</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%BA%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
@@ -84,14 +85,15 @@ header{
   position:absolute;top:12px;right:12px;z-index:500;
   background:var(--card);border:1px solid var(--line);border-radius:10px;
   padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink-soft);
-  box-shadow:var(--shadow);display:none;max-width:60%
+  box-shadow:var(--shadow);display:none;line-height:1.45;
+  max-width:min(340px, calc(100% - 90px))
 }
 #status.show{display:block}
-#status.err{color:#a12; border-color:#e6c4c4;background:#fdf3f3}
+#status.err{color:#a12; border-color:#e6c4c4;background:#fdf3f3;cursor:pointer}
 
 /* ---------- results panel ---------- */
 #panel{
-  flex:0 0 var(--panel-w);background:var(--card);border-right:1px solid var(--line);
+  flex:0 0 var(--panel-w);background:var(--card);border-left:1px solid var(--line);
   display:flex;flex-direction:column;z-index:400;box-shadow:var(--shadow)
 }
 .panel-head{
@@ -114,11 +116,13 @@ header{
 .item .nm{font-weight:700;font-size:15.5px;line-height:1.3;margin-bottom:3px}
 .item .meta{font-size:13px;color:var(--ink-soft);display:flex;flex-wrap:wrap;gap:4px 9px;align-items:center}
 .stars{color:#c8891a;font-weight:700}
+.rev{color:var(--ink-soft);font-weight:400}
 .open{color:var(--good);font-weight:600}
 .closed{color:#a12;font-weight:600}
 .rank{
-  flex:0 0 auto;background:var(--accent-soft);color:var(--accent);
-  font-size:11.5px;font-weight:700;border-radius:6px;padding:3px 7px;margin-top:2px
+  display:inline-block;vertical-align:middle;background:var(--accent-soft);color:var(--accent);
+  font-size:11.5px;font-weight:700;border-radius:6px;padding:2px 7px;
+  margin-inline-start:7px;position:relative;top:-1px
 }
 .fav{flex:0 0 auto;font-size:17px;padding:2px 4px;opacity:.32;align-self:center}
 .fav.on{opacity:1}
@@ -137,15 +141,19 @@ header{
 #detail .meta{font-size:14px;color:var(--ink-soft);margin-bottom:4px}
 #detail .addr{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px;line-height:1.5}
 #detail .acts{display:flex;gap:8px;flex-wrap:wrap}
+/* flex-basis:auto — אם אין מקום הכפתור עובר שורה שלם, במקום להיחתך באמצע */
 #detail .acts a,#detail .acts button{
-  flex:1 1 0;min-width:110px;text-align:center;text-decoration:none;
-  background:var(--ink);color:#fff;border-radius:10px;padding:11px 8px;
-  font-size:15px;font-weight:600
+  flex:1 1 auto;white-space:nowrap;text-align:center;text-decoration:none;
+  background:var(--ink);color:#fff;border-radius:10px;padding:11px 10px;
+  font-size:14.5px;font-weight:600
 }
 #detail .acts .ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
 #detail .x{position:absolute;top:12px;left:14px;font-size:22px;color:var(--ink-soft);line-height:1}
 @media(min-width:861px){
-  #detail{inset:auto auto 18px calc(var(--panel-w) + 18px);width:340px;border-radius:14px;border:1px solid var(--line);transform:translateY(140%)}
+  #detail{
+    inset:auto calc(var(--panel-w) + 18px) 18px auto;width:360px;
+    border-radius:14px;border:1px solid var(--line);transform:translateY(140%)
+  }
   #detail.show{transform:none}
 }
 
@@ -178,15 +186,20 @@ header{
 .pin{
   display:grid;place-items:center;width:30px;height:30px;font-size:16px;
   background:var(--card);border:2px solid var(--ink);border-radius:50% 50% 50% 4px;
-  transform:rotate(45deg);box-shadow:0 2px 6px rgba(0,0,0,.28)
+  transform:rotate(-45deg);box-shadow:2px 2px 6px rgba(0,0,0,.28)
 }
-.pin>span{transform:rotate(-45deg)}
+.pin>span{transform:rotate(45deg)}
 .pin.top{border-color:var(--accent);background:#fff5ef}
-.pin.sel{border-color:var(--accent);background:var(--accent);color:#fff;transform:rotate(45deg) scale(1.2)}
+.pin.sel{border-color:var(--accent);background:var(--accent);color:#fff;transform:rotate(-45deg) scale(1.2)}
 .me{width:16px;height:16px;border-radius:50%;background:#2f6fd0;border:3px solid #fff;box-shadow:0 0 0 3px rgba(47,111,208,.28)}
 .leaflet-container{font-family:inherit}
 
 /* ---------- mobile ---------- */
+@media(max-width:520px){
+  .brand{display:none}
+  .chip{padding:7px 11px;font-size:14.5px}
+  .chips{gap:6px}
+}
 @media(max-width:860px){
   #body{display:block}
   #map{position:absolute;inset:0;height:100%}
@@ -214,7 +227,7 @@ header{
       <div class="brand">איפה <span>מבלים</span></div>
       <form class="search" id="geoform">
         <span>🔍</span>
-        <input id="q" type="search" placeholder="חפש עיר, רחוב או שכונה" autocomplete="off">
+        <input id="q" type="search" placeholder="חפש עיר או רחוב" autocomplete="off">
       </form>
       <button class="iconbtn" id="locate" title="המיקום שלי" type="button">📍</button>
       <button class="iconbtn" id="opensettings" title="הגדרות" type="button">⚙️</button>
@@ -319,16 +332,24 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
   attribution:'&copy; OpenStreetMap, &copy; CARTO'
 }).addTo(map);
 
-var moved = false;
-map.on('movestart', function(){ moved = true; });
-map.on('moveend', function(){ if(moved && results.length) el('redo').classList.add('show'); });
+/* מרכז החיפוש האחרון — הכפתור "חפש באזור הזה" מופיע רק כשבאמת התרחקנו ממנו,
+   כדי שהזזה תכנותית של המפה (איתור מיקום, בחירת מקום) לא תדליק אותו לשווא */
+var lastCenter = null;
+map.on('moveend', function(){
+  if(!lastCenter || !results.length) return;
+  var c = map.getCenter();
+  var far = dist(lastCenter.lat, lastCenter.lng, c.lat, c.lng) > Math.max(150, cfg.radius * 0.3);
+  el('redo').classList.toggle('show', far);
+});
 
 /* ============ helpers ============ */
 function el(id){ return document.getElementById(id); }
 function say(msg, isErr){
   var s = el('status');
-  if(!msg){ s.classList.remove('show'); return; }
-  s.textContent = msg; s.classList.toggle('err', !!isErr); s.classList.add('show');
+  if(!msg){ s.classList.remove('show','err'); s.textContent=''; return; }
+  s.textContent = msg + (isErr ? ' — הקש לניסיון חוזר' : '');
+  s.classList.toggle('err', !!isErr);
+  s.classList.add('show');
 }
 function dist(a,b,c,d){
   var R=6371000, p=Math.PI/180;
@@ -341,6 +362,24 @@ function cat(id){ for(var i=0;i<CATS.length;i++) if(CATS[i].id===id) return CATS
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function keyOf(p){ return p.src+':'+p.id; }
+function clip(s){ s = String(s||'שגיאה'); return s.length > 70 ? s.slice(0,68)+'…' : s; }
+
+/* fetch עם תקרת זמן — ברשת סלולרית חלשה בקשה יכולה להיתקע לנצח,
+   ובלי זה המסך נשאר על "מחפש…" בלי דרך לצאת חוץ מרענון */
+function timedFetch(url, opt, ms, label){
+  var ctl = window.AbortController ? new AbortController() : null;
+  opt = opt || {};
+  if(ctl) opt.signal = ctl.signal;
+  var timer = setTimeout(function(){ if(ctl) ctl.abort(); }, ms);
+  return fetch(url, opt).then(function(r){
+    clearTimeout(timer); return r;
+  }, function(e){
+    clearTimeout(timer);
+    throw new Error(e && e.name === 'AbortError'
+      ? label + ' לא ענה תוך ' + Math.round(ms/1000) + ' שניות'
+      : 'אין חיבור לאינטרנט');
+  });
+}
 
 /* ציון המלצה: דירוג משוקלל בכמות ביקורות (Bayesian-ish) */
 function score(p){
@@ -370,20 +409,28 @@ function fetchOSM(lat,lon,r,c){
     parts.push('node['+f+'](around:'+r+','+lat+','+lon+');');
     parts.push('way['+f+'](around:'+r+','+lat+','+lon+');');
   });
-  var q = '[out:json][timeout:25];('+parts.join('')+');out center 120;';
-  return fetch('https://overpass-api.de/api/interpreter',{
+  var q = '[out:json][timeout:25];('+parts.join('')+');out center 200;';
+  return timedFetch('https://overpass-api.de/api/interpreter',{
       method:'POST', body:'data='+encodeURIComponent(q),
       headers:{'Content-Type':'application/x-www-form-urlencoded'}
+    }, 20000, 'שרת המפות')
+    .then(function(res){
+      if(res.status === 429 || res.status === 504) throw new Error('שרת המפות עמוס, נסה שוב בעוד רגע');
+      if(!res.ok) throw new Error('שרת המפות החזיר שגיאה ' + res.status);
+      return res.json();
     })
-    .then(function(res){ if(!res.ok) throw new Error('Overpass '+res.status); return res.json(); })
     .then(function(d){
-      var out = [];
+      var out = [], seen = {};
       (d.elements||[]).forEach(function(e){
         var t = e.tags||{}, name = t['name:he'] || t.name;
         if(!name) return;
         var la = e.lat!=null ? e.lat : (e.center&&e.center.lat);
         var lo = e.lon!=null ? e.lon : (e.center&&e.center.lon);
         if(la==null||lo==null) return;
+        /* אותו מקום ממופה לפעמים גם כנקודה וגם כמבנה, או תואם שני פילטרים */
+        var dup = name + '@' + la.toFixed(4) + ',' + lo.toFixed(4);
+        if(seen[dup]) return;
+        seen[dup] = 1;
         var street = [t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' ');
         out.push({
           src:'osm', id:e.type+e.id, name:name,
@@ -399,7 +446,7 @@ function fetchOSM(lat,lon,r,c){
 }
 
 function fetchGoogle(lat,lon,r,c,key){
-  return fetch('https://places.googleapis.com/v1/places:searchNearby',{
+  return timedFetch('https://places.googleapis.com/v1/places:searchNearby',{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
@@ -416,10 +463,10 @@ function fetchGoogle(lat,lon,r,c,key){
         regionCode: 'IL',
         locationRestriction:{ circle:{ center:{ latitude:lat, longitude:lon }, radius: Math.min(r,50000) } }
       })
-    })
+    }, 12000, 'גוגל')
     .then(function(res){
-      return res.json().then(function(d){
-        if(!res.ok) throw new Error((d.error&&d.error.message) || ('Google '+res.status));
+      return res.json().catch(function(){ return {}; }).then(function(d){
+        if(!res.ok) throw new Error((d.error&&d.error.message) || ('גוגל החזיר שגיאה ' + res.status));
         return d;
       });
     })
@@ -445,13 +492,19 @@ function fetchGoogle(lat,lon,r,c,key){
 /* ============ חיפוש ============ */
 function search(){
   var c = cat(cfg.cat), ctr = map.getCenter(), r = cfg.radius, my = ++seq;
-  el('redo').classList.remove('show'); moved = false;
+  lastCenter = ctr;
+  el('redo').classList.remove('show');
+  el('detail').classList.remove('show');
+  selected = null;
   say('מחפש ' + c.name + '…');
   el('ptitle').textContent = c.name;
 
+  /* אם גוגל נפל — שומרים את הסיבה ומציגים אותה בסוף, אחרת היא נדרסת
+     בהודעה גנרית והמשתמש לא יודע למה נעלמו הדירוגים */
+  var fellBack = null;
   var job = cfg.key
     ? fetchGoogle(ctr.lat, ctr.lng, r, c, cfg.key).catch(function(err){
-        say('גוגל: ' + err.message + ' — עברתי ל‑OpenStreetMap', true);
+        fellBack = clip(err.message);
         return fetchOSM(ctr.lat, ctr.lng, r, c);
       })
     : fetchOSM(ctr.lat, ctr.lng, r, c);
@@ -467,14 +520,15 @@ function search(){
         ? function(a,b){ return (b.score-a.score) || (a.dist-b.dist); }
         : function(a,b){ return a.dist-b.dist; });
       results = list.slice(0,60);
-      if(cfg.key && !rated && results.length) say('אין דירוגים בתוצאות האלה', true);
+      if(fellBack) say('גוגל נכשל (' + fellBack + '). התוצאות מ‑OpenStreetMap, בלי דירוגים', true);
+      else if(cfg.key && !rated && results.length) say('אין דירוגים למקומות האלה', true);
       else if(results.length) say('');
       render();
     })
     .catch(function(err){
       if(my !== seq) return;
       results = []; render();
-      say('שגיאה: ' + err.message, true);
+      say(clip(err.message), true);
     });
 }
 
@@ -509,8 +563,9 @@ function render(){
 
     var bits = [];
     if(p.rating != null){
-      bits.push('<span class="stars">★ '+p.rating.toFixed(1)+'</span>');
-      if(p.reviews != null) bits.push('('+p.reviews.toLocaleString('he-IL')+' ביקורות)');
+      /* קומפקטי בכוונה — שורת המטא חייבת להיכנס לשורה אחת בפלאפון */
+      bits.push('<span class="stars">★ '+p.rating.toFixed(1)+'</span>' +
+                (p.reviews != null ? ' <span class="rev">('+p.reviews.toLocaleString('he-IL')+')</span>' : ''));
     }
     bits.push(fmtDist(p.dist));
     if(p.openNow === true)  bits.push('<span class="open">פתוח</span>');
@@ -522,9 +577,12 @@ function render(){
 
     row.innerHTML =
       '<div class="em">'+c.em+'</div>' +
-      '<div class="info"><div class="nm">'+esc(p.name)+'</div>' +
-      '<div class="meta">'+bits.join('<span>·</span>')+'</div></div>' +
-      (top ? '<div class="rank">'+(i===0?'הכי מומלץ':'מומלץ')+'</div>' : '') +
+      '<div class="info">' +
+        '<div class="nm">'+esc(p.name) +
+          (top ? '<span class="rank">'+(i===0?'הכי מומלץ':'מומלץ')+'</span>' : '') +
+        '</div>' +
+        '<div class="meta">'+bits.join('<span>·</span>')+'</div>' +
+      '</div>' +
       '<button class="fav'+(cfg.favs[keyOf(p)]?' on':'')+'" type="button" title="שמור">'+
         (cfg.favs[keyOf(p)]?'★':'☆')+'</button>';
 
@@ -556,7 +614,6 @@ function select(i, fromList){
 
   if(fromList){
     map.setView([p.lat,p.lon], Math.max(map.getZoom(),16), {animate:true});
-    el('redo').classList.remove('show'); moved = false;
   }else{
     var row = el('list').querySelector('[data-i="'+i+'"]');
     if(row) row.scrollIntoView({block:'nearest'});
@@ -626,17 +683,20 @@ el('geoform').onsubmit = function(ev){
   if(!q) return;
   el('q').blur();
   say('מחפש כתובת…');
-  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=he&q=' + encodeURIComponent(q))
+  timedFetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=he&q=' +
+             encodeURIComponent(q), null, 12000, 'חיפוש הכתובת')
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(!d.length){ say('לא מצאתי את המקום הזה', true); return; }
+      if(!d.length){ say('לא מצאתי את "' + q + '"', true); return; }
       map.setView([+d[0].lat, +d[0].lon], 15);
       search();
     })
-    .catch(function(){ say('חיפוש הכתובת נכשל', true); });
+    .catch(function(err){ say(err.message, true); });
 };
 
 el('redo').onclick = search;
+/* הודעת שגיאה = כפתור ניסיון חוזר */
+el('status').onclick = function(){ if(this.classList.contains('err')) search(); };
 
 /* ============ מגירה במובייל ============ */
 el('grip').onclick = function(){ el('panel').classList.toggle('up'); };
@@ -655,7 +715,12 @@ el('savecfg').onclick = function(){
   el('settings').classList.remove('show');
   search();
 };
-el('clearfav').onclick = function(){ cfg.favs = {}; save(); render(); };
+el('clearfav').onclick = function(){
+  var n = Object.keys(cfg.favs).length;
+  if(!n){ alert('אין מקומות שמורים'); return; }
+  if(!confirm('למחוק ' + n + ' מקומות שמורים?')) return;
+  cfg.favs = {}; save(); render();
+};
 el('settings').onclick = function(ev){ if(ev.target === this) this.classList.remove('show'); };
 
 /* ============ go ============ */
