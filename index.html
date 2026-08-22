@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c2b3a">
+<title>איפה מבלים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#f7f5f1;
+  --card:#ffffff;
+  --ink:#1c2b3a;
+  --ink-soft:#5b6875;
+  --line:#e2ddd5;
+  --accent:#b4531f;
+  --accent-soft:#f6ece5;
+  --good:#2f7a4f;
+  --shadow:0 2px 14px rgba(28,43,58,.10);
+  --panel-w:380px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  font-family:'Assistant',system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+  background:var(--bg);color:var(--ink);
+  overflow:hidden;
+}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+
+/* ---------- shell ---------- */
+#app{display:flex;flex-direction:column;height:100dvh}
+
+header{
+  background:var(--card);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 0;
+  flex:0 0 auto;z-index:600;box-shadow:var(--shadow)
+}
+.topline{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.brand{font-weight:700;font-size:19px;letter-spacing:-.2px;white-space:nowrap}
+.brand span{color:var(--accent)}
+.search{
+  flex:1;display:flex;align-items:center;gap:6px;min-width:0;
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:0 10px;height:38px
+}
+.search input{
+  flex:1;min-width:0;border:0;background:none;outline:none;
+  font:inherit;font-size:15px;color:var(--ink)
+}
+.search input::placeholder{color:#9aa4ae}
+.iconbtn{
+  width:38px;height:38px;flex:0 0 auto;border-radius:10px;border:1px solid var(--line);
+  background:var(--bg);display:grid;place-items:center;font-size:17px
+}
+.iconbtn:active{background:var(--accent-soft)}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:0 0 auto;display:flex;align-items:center;gap:6px;
+  border:1px solid var(--line);background:var(--card);
+  border-radius:999px;padding:7px 14px;font-size:15px;font-weight:600;color:var(--ink-soft);
+  transition:.12s
+}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip .em{font-size:15px}
+
+/* ---------- body ---------- */
+#body{flex:1;position:relative;display:flex;min-height:0}
+#map{flex:1;height:100%;background:#e8e4dd;z-index:1}
+
+#redo{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  z-index:500;background:var(--ink);color:#fff;border-radius:999px;
+  padding:9px 18px;font-size:14px;font-weight:600;box-shadow:var(--shadow);
+  display:none
+}
+#redo.show{display:block}
+
+#status{
+  position:absolute;top:12px;right:12px;z-index:500;
+  background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:7px 12px;font-size:13px;font-weight:600;color:var(--ink-soft);
+  box-shadow:var(--shadow);display:none;max-width:60%
+}
+#status.show{display:block}
+#status.err{color:#a12; border-color:#e6c4c4;background:#fdf3f3}
+
+/* ---------- results panel ---------- */
+#panel{
+  flex:0 0 var(--panel-w);background:var(--card);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;z-index:400;box-shadow:var(--shadow)
+}
+.panel-head{
+  padding:12px 14px 10px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:8px
+}
+.panel-head h2{margin:0;font-size:15px;font-weight:700;flex:1}
+.count{font-size:13px;color:var(--ink-soft);font-weight:600}
+.grip{display:none}
+
+#list{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.item{
+  display:flex;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line);
+  align-items:flex-start;width:100%;text-align:right
+}
+.item:active{background:var(--accent-soft)}
+.item.active{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.item .em{font-size:21px;line-height:1.2;flex:0 0 auto;margin-top:1px}
+.item .info{flex:1;min-width:0}
+.item .nm{font-weight:700;font-size:15.5px;line-height:1.3;margin-bottom:3px}
+.item .meta{font-size:13px;color:var(--ink-soft);display:flex;flex-wrap:wrap;gap:4px 9px;align-items:center}
+.stars{color:#c8891a;font-weight:700}
+.open{color:var(--good);font-weight:600}
+.closed{color:#a12;font-weight:600}
+.rank{
+  flex:0 0 auto;background:var(--accent-soft);color:var(--accent);
+  font-size:11.5px;font-weight:700;border-radius:6px;padding:3px 7px;margin-top:2px
+}
+.fav{flex:0 0 auto;font-size:17px;padding:2px 4px;opacity:.32;align-self:center}
+.fav.on{opacity:1}
+.empty{padding:34px 20px;text-align:center;color:var(--ink-soft);font-size:14.5px;line-height:1.6}
+
+/* ---------- detail sheet ---------- */
+#detail{
+  position:fixed;inset:auto 0 0 0;z-index:900;background:var(--card);
+  border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+  box-shadow:0 -4px 24px rgba(28,43,58,.18);
+  padding:16px 16px calc(env(safe-area-inset-bottom) + 16px);
+  transform:translateY(105%);transition:transform .22s ease
+}
+#detail.show{transform:none}
+#detail h3{margin:0 0 6px;font-size:19px;line-height:1.25;padding-inline-end:34px}
+#detail .meta{font-size:14px;color:var(--ink-soft);margin-bottom:4px}
+#detail .addr{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px;line-height:1.5}
+#detail .acts{display:flex;gap:8px;flex-wrap:wrap}
+#detail .acts a,#detail .acts button{
+  flex:1 1 0;min-width:110px;text-align:center;text-decoration:none;
+  background:var(--ink);color:#fff;border-radius:10px;padding:11px 8px;
+  font-size:15px;font-weight:600
+}
+#detail .acts .ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+#detail .x{position:absolute;top:12px;left:14px;font-size:22px;color:var(--ink-soft);line-height:1}
+@media(min-width:861px){
+  #detail{inset:auto auto 18px calc(var(--panel-w) + 18px);width:340px;border-radius:14px;border:1px solid var(--line);transform:translateY(140%)}
+  #detail.show{transform:none}
+}
+
+/* ---------- settings ---------- */
+#settings{
+  position:fixed;inset:0;z-index:1000;background:rgba(28,43,58,.42);
+  display:none;align-items:center;justify-content:center;padding:18px
+}
+#settings.show{display:flex}
+.sheet{
+  background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:460px;
+  max-height:86dvh;overflow:auto
+}
+.sheet h3{margin:0 0 4px;font-size:18px}
+.sheet p{margin:0 0 14px;font-size:14px;color:var(--ink-soft);line-height:1.65}
+.sheet label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
+.sheet input[type=text],.sheet input[type=password]{
+  width:100%;height:42px;border:1px solid var(--line);border-radius:10px;
+  padding:0 11px;font:inherit;font-size:15px;background:var(--bg);color:var(--ink);
+  direction:ltr;text-align:left
+}
+.sheet input[type=range]{width:100%;accent-color:var(--accent)}
+.sheet .row{display:flex;gap:8px;margin-top:18px}
+.sheet .row button{flex:1;border-radius:10px;padding:12px;font-size:15px;font-weight:600;background:var(--ink);color:#fff}
+.sheet .row button.ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.note{font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-top:8px}
+.note a{color:var(--accent)}
+
+/* ---------- markers ---------- */
+.pin{
+  display:grid;place-items:center;width:30px;height:30px;font-size:16px;
+  background:var(--card);border:2px solid var(--ink);border-radius:50% 50% 50% 4px;
+  transform:rotate(45deg);box-shadow:0 2px 6px rgba(0,0,0,.28)
+}
+.pin>span{transform:rotate(-45deg)}
+.pin.top{border-color:var(--accent);background:#fff5ef}
+.pin.sel{border-color:var(--accent);background:var(--accent);color:#fff;transform:rotate(45deg) scale(1.2)}
+.me{width:16px;height:16px;border-radius:50%;background:#2f6fd0;border:3px solid #fff;box-shadow:0 0 0 3px rgba(47,111,208,.28)}
+.leaflet-container{font-family:inherit}
+
+/* ---------- mobile ---------- */
+@media(max-width:860px){
+  #body{display:block}
+  #map{position:absolute;inset:0;height:100%}
+  #panel{
+    position:absolute;inset:auto 0 0 0;flex:none;border:0;
+    border-radius:16px 16px 0 0;height:62dvh;
+    transform:translateY(calc(62dvh - 118px));
+    transition:transform .24s ease;box-shadow:0 -4px 20px rgba(28,43,58,.16)
+  }
+  #panel.up{transform:none}
+  .grip{
+    display:block;width:42px;height:5px;border-radius:3px;background:var(--line);
+    margin:8px auto 2px
+  }
+  .panel-head{padding-top:4px}
+  #detail{z-index:950}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="topline">
+      <div class="brand">איפה <span>מבלים</span></div>
+      <form class="search" id="geoform">
+        <span>🔍</span>
+        <input id="q" type="search" placeholder="חפש עיר, רחוב או שכונה" autocomplete="off">
+      </form>
+      <button class="iconbtn" id="locate" title="המיקום שלי" type="button">📍</button>
+      <button class="iconbtn" id="opensettings" title="הגדרות" type="button">⚙️</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </header>
+
+  <div id="body">
+    <aside id="panel">
+      <div class="grip" id="grip"></div>
+      <div class="panel-head">
+        <h2 id="ptitle">תוצאות</h2>
+        <span class="count" id="pcount"></span>
+      </div>
+      <div id="list"></div>
+    </aside>
+    <div id="map"></div>
+    <button id="redo" type="button">חפש באזור הזה</button>
+    <div id="status"></div>
+  </div>
+</div>
+
+<div id="detail">
+  <button class="x" id="dclose" type="button">✕</button>
+  <h3 id="dname"></h3>
+  <div class="meta" id="dmeta"></div>
+  <div class="addr" id="daddr"></div>
+  <div class="acts">
+    <a id="dwaze" target="_blank" rel="noopener">ניווט ב‑Waze</a>
+    <a id="dmaps" target="_blank" rel="noopener" class="ghost">Google Maps</a>
+    <button id="dfav" class="ghost" type="button">שמור</button>
+  </div>
+</div>
+
+<div id="settings">
+  <div class="sheet">
+    <h3>הגדרות</h3>
+    <p>ברירת מחדל: נתונים חיים מ‑OpenStreetMap — חינם, בלי מפתח, אבל בלי דירוגים.
+       כדי לקבל דירוגים וכמות ביקורות אמיתיות (וסידור לפי המלצות) — הדבק מפתח Google Places.</p>
+
+    <label for="radius">רדיוס חיפוש: <span id="rlabel"></span></label>
+    <input type="range" id="radius" min="300" max="5000" step="100">
+
+    <label for="gkey">מפתח Google Places API (אופציונלי)</label>
+    <input type="password" id="gkey" placeholder="AIza..." autocomplete="off" spellcheck="false">
+    <div class="note">
+      נשמר רק בדפדפן שלך (localStorage) ולא נשלח לשום מקום חוץ מגוגל.<br>
+      להשגה: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com</a> →
+      הפעל <b>Places API (New)</b> → צור מפתח → הגבל אותו ל‑HTTP referrer של הכתובת הזאת.
+    </div>
+
+    <div class="row">
+      <button class="ghost" id="clearfav" type="button">נקה שמורים</button>
+      <button id="savecfg" type="button">שמור</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ============ קטגוריות ============ */
+var CATS = [
+  { id:'food',  name:'מסעדות', em:'🍽️',
+    osm:['amenity~"^(restaurant|fast_food)$"'],
+    g:['restaurant'] },
+  { id:'coffee',name:'קפה',    em:'☕',
+    osm:['amenity~"^(cafe|ice_cream)$"','shop~"^(coffee|bakery|pastry)$"'],
+    g:['cafe','bakery'] },
+  { id:'bar',   name:'בר',     em:'🍺',
+    osm:['amenity~"^(bar|pub|biergarten)$"'],
+    g:['bar'] },
+  { id:'fun',   name:'כיף',    em:'🎉',
+    osm:['tourism~"^(attraction|museum|gallery)$"','amenity~"^(cinema|theatre)$"','leisure~"^(bowling_alley|amusement_arcade|escape_game|water_park)$"'],
+    g:['tourist_attraction','movie_theater','bowling_alley','amusement_park'] },
+  { id:'sit',   name:'לשבת',   em:'🌳',
+    osm:['leisure~"^(park|garden)$"','tourism="viewpoint"','natural="beach"'],
+    g:['park'] }
+];
+
+/* ============ state ============ */
+var LS = 'mvl.v1';
+var cfg = load();
+function load(){
+  var d = { cat:'food', radius:1200, key:'', favs:{} };
+  try{ var s = JSON.parse(localStorage.getItem(LS)||'{}'); for(var k in d) if(k in s) d[k]=s[k]; }catch(e){}
+  if(!CATS.some(function(c){return c.id===d.cat;})) d.cat='food';
+  return d;
+}
+function save(){ try{ localStorage.setItem(LS, JSON.stringify(cfg)); }catch(e){} }
+
+var results = [], markers = [], selected = null, meMarker = null, seq = 0;
+
+/* ============ מפה ============ */
+var map = L.map('map',{ zoomControl:false, attributionControl:true })
+           .setView([32.0853,34.7818], 15);
+L.control.zoom({position:'topleft'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+  maxZoom:19, subdomains:'abcd',
+  attribution:'&copy; OpenStreetMap, &copy; CARTO'
+}).addTo(map);
+
+var moved = false;
+map.on('movestart', function(){ moved = true; });
+map.on('moveend', function(){ if(moved && results.length) el('redo').classList.add('show'); });
+
+/* ============ helpers ============ */
+function el(id){ return document.getElementById(id); }
+function say(msg, isErr){
+  var s = el('status');
+  if(!msg){ s.classList.remove('show'); return; }
+  s.textContent = msg; s.classList.toggle('err', !!isErr); s.classList.add('show');
+}
+function dist(a,b,c,d){
+  var R=6371000, p=Math.PI/180;
+  var x=(c-a)*p, y=(d-b)*p;
+  var h=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a*p)*Math.cos(c*p)*Math.sin(y/2)*Math.sin(y/2);
+  return Math.round(2*R*Math.asin(Math.sqrt(h)));
+}
+function fmtDist(m){ return m>=1000 ? (m/1000).toFixed(1)+' ק״מ' : m+' מ׳'; }
+function cat(id){ for(var i=0;i<CATS.length;i++) if(CATS[i].id===id) return CATS[i]; return CATS[0]; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function keyOf(p){ return p.src+':'+p.id; }
+
+/* ציון המלצה: דירוג משוקלל בכמות ביקורות (Bayesian-ish) */
+function score(p){
+  if(p.rating==null) return 0;
+  var n = p.reviews||0, m = 25, prior = 4.0;
+  return (n/(n+m))*p.rating + (m/(n+m))*prior + Math.log10(n+1)*0.12;
+}
+
+/* ============ צ'יפים ============ */
+var chips = el('chips');
+CATS.forEach(function(c){
+  var b = document.createElement('button');
+  b.type='button'; b.className='chip'+(c.id===cfg.cat?' on':''); b.dataset.id=c.id;
+  b.innerHTML = '<span class="em">'+c.em+'</span>'+c.name;
+  b.onclick = function(){
+    cfg.cat = c.id; save();
+    [].forEach.call(chips.children, function(x){ x.classList.toggle('on', x.dataset.id===c.id); });
+    search();
+  };
+  chips.appendChild(b);
+});
+
+/* ============ מקורות נתונים ============ */
+function fetchOSM(lat,lon,r,c){
+  var parts = [];
+  c.osm.forEach(function(f){
+    parts.push('node['+f+'](around:'+r+','+lat+','+lon+');');
+    parts.push('way['+f+'](around:'+r+','+lat+','+lon+');');
+  });
+  var q = '[out:json][timeout:25];('+parts.join('')+');out center 120;';
+  return fetch('https://overpass-api.de/api/interpreter',{
+      method:'POST', body:'data='+encodeURIComponent(q),
+      headers:{'Content-Type':'application/x-www-form-urlencoded'}
+    })
+    .then(function(res){ if(!res.ok) throw new Error('Overpass '+res.status); return res.json(); })
+    .then(function(d){
+      var out = [];
+      (d.elements||[]).forEach(function(e){
+        var t = e.tags||{}, name = t['name:he'] || t.name;
+        if(!name) return;
+        var la = e.lat!=null ? e.lat : (e.center&&e.center.lat);
+        var lo = e.lon!=null ? e.lon : (e.center&&e.center.lon);
+        if(la==null||lo==null) return;
+        var street = [t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' ');
+        out.push({
+          src:'osm', id:e.type+e.id, name:name,
+          lat:la, lon:lo, rating:null, reviews:null, openNow:null,
+          addr:[street, t['addr:city']].filter(Boolean).join(', '),
+          kind:t.cuisine||t.amenity||t.leisure||t.tourism||'',
+          mapsUrl:'https://www.google.com/maps/search/?api=1&query='+
+                  encodeURIComponent(name)+'&query_place_id='
+        });
+      });
+      return out;
+    });
+}
+
+function fetchGoogle(lat,lon,r,c,key){
+  return fetch('https://places.googleapis.com/v1/places:searchNearby',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Goog-Api-Key':key,
+        'X-Goog-FieldMask':'places.id,places.displayName,places.rating,places.userRatingCount,' +
+          'places.location,places.shortFormattedAddress,places.currentOpeningHours.openNow,' +
+          'places.googleMapsUri,places.priceLevel,places.primaryTypeDisplayName'
+      },
+      body: JSON.stringify({
+        includedTypes: c.g,
+        maxResultCount: 20,
+        rankPreference: 'POPULARITY',
+        languageCode: 'he',
+        regionCode: 'IL',
+        locationRestriction:{ circle:{ center:{ latitude:lat, longitude:lon }, radius: Math.min(r,50000) } }
+      })
+    })
+    .then(function(res){
+      return res.json().then(function(d){
+        if(!res.ok) throw new Error((d.error&&d.error.message) || ('Google '+res.status));
+        return d;
+      });
+    })
+    .then(function(d){
+      return (d.places||[]).map(function(p){
+        return {
+          src:'g', id:p.id,
+          name:(p.displayName&&p.displayName.text) || 'ללא שם',
+          lat:p.location.latitude, lon:p.location.longitude,
+          rating:p.rating!=null?p.rating:null,
+          reviews:p.userRatingCount!=null?p.userRatingCount:null,
+          openNow:(p.currentOpeningHours&&typeof p.currentOpeningHours.openNow==='boolean')
+                    ? p.currentOpeningHours.openNow : null,
+          addr:p.shortFormattedAddress||'',
+          kind:(p.primaryTypeDisplayName&&p.primaryTypeDisplayName.text)||'',
+          price:p.priceLevel||null,
+          mapsUrl:p.googleMapsUri||''
+        };
+      });
+    });
+}
+
+/* ============ חיפוש ============ */
+function search(){
+  var c = cat(cfg.cat), ctr = map.getCenter(), r = cfg.radius, my = ++seq;
+  el('redo').classList.remove('show'); moved = false;
+  say('מחפש ' + c.name + '…');
+  el('ptitle').textContent = c.name;
+
+  var job = cfg.key
+    ? fetchGoogle(ctr.lat, ctr.lng, r, c, cfg.key).catch(function(err){
+        say('גוגל: ' + err.message + ' — עברתי ל‑OpenStreetMap', true);
+        return fetchOSM(ctr.lat, ctr.lng, r, c);
+      })
+    : fetchOSM(ctr.lat, ctr.lng, r, c);
+
+  job.then(function(list){
+      if(my !== seq) return;
+      list.forEach(function(p){
+        p.dist = dist(ctr.lat, ctr.lng, p.lat, p.lon);
+        p.score = score(p);
+      });
+      var rated = list.some(function(p){ return p.rating!=null; });
+      list.sort(rated
+        ? function(a,b){ return (b.score-a.score) || (a.dist-b.dist); }
+        : function(a,b){ return a.dist-b.dist; });
+      results = list.slice(0,60);
+      if(cfg.key && !rated && results.length) say('אין דירוגים בתוצאות האלה', true);
+      else if(results.length) say('');
+      render();
+    })
+    .catch(function(err){
+      if(my !== seq) return;
+      results = []; render();
+      say('שגיאה: ' + err.message, true);
+    });
+}
+
+/* ============ תצוגה ============ */
+function render(){
+  var c = cat(cfg.cat), list = el('list');
+  markers.forEach(function(m){ map.removeLayer(m); });
+  markers = [];
+  list.innerHTML = '';
+  el('pcount').textContent = results.length ? results.length + ' מקומות' : '';
+
+  if(!results.length){
+    list.innerHTML = '<div class="empty">לא נמצאו מקומות באזור הזה.<br>נסה להגדיל את הרדיוס בהגדרות ⚙️ או להזיז את המפה.</div>';
+    return;
+  }
+
+  var rated = results[0].rating != null;
+
+  results.forEach(function(p, i){
+    /* --- מרקר --- */
+    var top = rated && i < 3;
+    var m = L.marker([p.lat,p.lon],{
+      icon: L.divIcon({ className:'', html:'<div class="pin'+(top?' top':'')+'"><span>'+c.em+'</span></div>',
+                        iconSize:[30,30], iconAnchor:[15,30] })
+    }).addTo(map);
+    m.on('click', function(){ select(i, false); });
+    markers.push(m);
+
+    /* --- שורה ברשימה --- */
+    var row = document.createElement('div');
+    row.className = 'item'; row.dataset.i = i;
+
+    var bits = [];
+    if(p.rating != null){
+      bits.push('<span class="stars">★ '+p.rating.toFixed(1)+'</span>');
+      if(p.reviews != null) bits.push('('+p.reviews.toLocaleString('he-IL')+' ביקורות)');
+    }
+    bits.push(fmtDist(p.dist));
+    if(p.openNow === true)  bits.push('<span class="open">פתוח</span>');
+    if(p.openNow === false) bits.push('<span class="closed">סגור</span>');
+    if(p.price === 'PRICE_LEVEL_INEXPENSIVE') bits.push('₪');
+    if(p.price === 'PRICE_LEVEL_MODERATE')    bits.push('₪₪');
+    if(p.price === 'PRICE_LEVEL_EXPENSIVE')   bits.push('₪₪₪');
+    if(p.price === 'PRICE_LEVEL_VERY_EXPENSIVE') bits.push('₪₪₪₪');
+
+    row.innerHTML =
+      '<div class="em">'+c.em+'</div>' +
+      '<div class="info"><div class="nm">'+esc(p.name)+'</div>' +
+      '<div class="meta">'+bits.join('<span>·</span>')+'</div></div>' +
+      (top ? '<div class="rank">'+(i===0?'הכי מומלץ':'מומלץ')+'</div>' : '') +
+      '<button class="fav'+(cfg.favs[keyOf(p)]?' on':'')+'" type="button" title="שמור">'+
+        (cfg.favs[keyOf(p)]?'★':'☆')+'</button>';
+
+    row.querySelector('.fav').onclick = function(ev){
+      ev.stopPropagation();
+      var k = keyOf(p);
+      if(cfg.favs[k]) delete cfg.favs[k]; else cfg.favs[k] = p.name;
+      save();
+      this.classList.toggle('on', !!cfg.favs[k]);
+      this.textContent = cfg.favs[k] ? '★' : '☆';
+    };
+    row.onclick = function(){ select(i, true); };
+    list.appendChild(row);
+  });
+}
+
+function select(i, fromList){
+  var p = results[i], c = cat(cfg.cat);
+  if(!p) return;
+  selected = i;
+
+  markers.forEach(function(m, j){
+    var d = m.getElement() && m.getElement().querySelector('.pin');
+    if(d) d.classList.toggle('sel', j===i);
+  });
+  [].forEach.call(el('list').children, function(x){
+    x.classList && x.classList.toggle('active', x.dataset.i == i);
+  });
+
+  if(fromList){
+    map.setView([p.lat,p.lon], Math.max(map.getZoom(),16), {animate:true});
+    el('redo').classList.remove('show'); moved = false;
+  }else{
+    var row = el('list').querySelector('[data-i="'+i+'"]');
+    if(row) row.scrollIntoView({block:'nearest'});
+  }
+
+  el('dname').textContent = p.name;
+  var bits = [];
+  if(p.rating != null){
+    bits.push('★ ' + p.rating.toFixed(1) + (p.reviews!=null ? ' · '+p.reviews.toLocaleString('he-IL')+' ביקורות' : ''));
+  }
+  bits.push(fmtDist(p.dist));
+  if(p.openNow === true) bits.push('פתוח עכשיו');
+  if(p.openNow === false) bits.push('סגור עכשיו');
+  if(p.kind) bits.push(p.kind);
+  el('dmeta').textContent = bits.join(' · ');
+  el('daddr').textContent = p.addr || '';
+
+  el('dwaze').href = 'https://waze.com/ul?ll=' + p.lat + ',' + p.lon + '&navigate=yes';
+  el('dmaps').href = p.src==='g' && p.mapsUrl
+    ? p.mapsUrl
+    : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ' ' + p.lat + ',' + p.lon);
+
+  var fb = el('dfav'), k = keyOf(p);
+  fb.textContent = cfg.favs[k] ? '★ שמור' : '☆ שמור';
+  fb.onclick = function(){
+    if(cfg.favs[k]) delete cfg.favs[k]; else cfg.favs[k] = p.name;
+    save(); fb.textContent = cfg.favs[k] ? '★ שמור' : '☆ שמור'; render();
+    if(selected!=null) select(selected, false);
+  };
+
+  el('detail').classList.add('show');
+  el('panel').classList.remove('up');
+}
+
+el('dclose').onclick = function(){
+  el('detail').classList.remove('show');
+  markers.forEach(function(m){
+    var d = m.getElement() && m.getElement().querySelector('.pin');
+    if(d) d.classList.remove('sel');
+  });
+};
+
+/* ============ מיקום ============ */
+function locate(){
+  if(!navigator.geolocation){ say('הדפדפן לא תומך במיקום', true); search(); return; }
+  say('מאתר אותך…');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var la = pos.coords.latitude, lo = pos.coords.longitude;
+    if(meMarker) map.removeLayer(meMarker);
+    meMarker = L.marker([la,lo],{
+      icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[16,16],iconAnchor:[8,8]}),
+      zIndexOffset:1000, interactive:false
+    }).addTo(map);
+    map.setView([la,lo], 16);
+    search();
+  }, function(){
+    say('לא הצלחתי לאתר מיקום — חפש עיר או הזז את המפה', true);
+    search();
+  }, { enableHighAccuracy:true, timeout:9000, maximumAge:120000 });
+}
+el('locate').onclick = locate;
+
+/* ============ חיפוש כתובת ============ */
+el('geoform').onsubmit = function(ev){
+  ev.preventDefault();
+  var q = el('q').value.trim();
+  if(!q) return;
+  el('q').blur();
+  say('מחפש כתובת…');
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=he&q=' + encodeURIComponent(q))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.length){ say('לא מצאתי את המקום הזה', true); return; }
+      map.setView([+d[0].lat, +d[0].lon], 15);
+      search();
+    })
+    .catch(function(){ say('חיפוש הכתובת נכשל', true); });
+};
+
+el('redo').onclick = search;
+
+/* ============ מגירה במובייל ============ */
+el('grip').onclick = function(){ el('panel').classList.toggle('up'); };
+
+/* ============ הגדרות ============ */
+function rlabel(){ el('rlabel').textContent = cfg.radius>=1000 ? (cfg.radius/1000).toFixed(1)+' ק״מ' : cfg.radius+' מ׳'; }
+el('opensettings').onclick = function(){
+  el('radius').value = cfg.radius; el('gkey').value = cfg.key; rlabel();
+  el('settings').classList.add('show');
+};
+el('radius').oninput = function(){ cfg.radius = +this.value; rlabel(); };
+el('savecfg').onclick = function(){
+  cfg.key = el('gkey').value.trim();
+  cfg.radius = +el('radius').value;
+  save();
+  el('settings').classList.remove('show');
+  search();
+};
+el('clearfav').onclick = function(){ cfg.favs = {}; save(); render(); };
+el('settings').onclick = function(ev){ if(ev.target === this) this.classList.remove('show'); };
+
+/* ============ go ============ */
+rlabel();
+locate();
+
+})();
+</script>
+</body>
+</html>

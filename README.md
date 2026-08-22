@@ -1,5 +1,46 @@
-# Welcome to GitHub Desktop!
+# איפה מבלים 🗺️
 
-This is your README. READMEs are where you can communicate what your project is and how to use it.
+ממשק מפה אישי למציאת בילויים באזור — מסעדות, קפה, בר, כיף ומקומות לשבת בהם.
+קובץ HTML אחד, בלי בנייה ובלי שרת. עובד בפלאפון ובמחשב.
 
-Write your name on line 6, save it, and then head back to GitHub Desktop.
+## הפעלה
+
+- **מקומית:** לוחצים פעמיים על `index.html`.
+- **קישור:** GitHub Pages — בהגדרות הרפו → Pages → Source: הברנץ' הרצוי, תיקייה `/root`.
+  הכתובת תהיה `https://<user>.github.io/<repo>/`.
+
+חשוב: איתור מיקום (GPS) בדפדפן עובד רק ב‑HTTPS או ב‑`localhost`.
+בפתיחת הקובץ ישירות מהדיסק בפלאפון המיקום לא יעבוד — בשביל זה צריך את קישור ה‑Pages.
+
+## מקורות נתונים
+
+| מקור | מפתח | דירוגים | עלות |
+|---|---|---|---|
+| OpenStreetMap (ברירת מחדל) | לא צריך | ❌ | חינם |
+| Google Places API (New) | צריך | ✅ דירוג + כמות ביקורות | חינם בשימוש אישי |
+
+בלי מפתח: המפה עובדת מיד, התוצאות מסודרות לפי מרחק.
+עם מפתח: התוצאות מסודרות לפי המלצות — ציון משוקלל של דירוג וכמות ביקורות
+(מקום עם 4.6 ו‑900 ביקורות יעלה על מקום עם 5.0 ושתי ביקורות).
+
+### הוספת מפתח Google
+
+1. [console.cloud.google.com](https://console.cloud.google.com/apis/credentials) → פרויקט חדש
+2. הפעלת **Places API (New)**
+3. Credentials → Create credentials → API key
+4. הגבלת המפתח: Application restrictions → Websites → הוספת כתובת ה‑Pages
+5. API restrictions → Places API (New) בלבד
+6. בממשק: ⚙️ → הדבקה בשדה → שמירה
+
+המפתח נשמר ב‑`localStorage` של הדפדפן בלבד ונשלח רק לגוגל.
+
+## מה יש בפנים
+
+- 5 קטגוריות, מיקום אוטומטי, חיפוש כתובת, רדיוס 300 מ׳–5 ק״מ
+- "חפש באזור הזה" בהזזת המפה
+- מקומות שמורים (★), ניווט ל‑Waze / Google Maps
+- עברית מלאה, RTL, ממשק שעובד במגע
+
+## טכנולוגיות
+
+Leaflet · אריחי CARTO Positron · Overpass API · Nominatim · Google Places API (New)
