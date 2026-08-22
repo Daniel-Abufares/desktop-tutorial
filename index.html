@@ -52,6 +52,8 @@ header{
   font:inherit;font-size:15px;color:var(--ink)
 }
 .search input::placeholder{color:#9aa4ae}
+.citybtn{flex:0 0 auto;font-size:16px;padding:2px 4px;opacity:.35;border-radius:8px;transition:.12s}
+.citybtn.on{opacity:1;background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px var(--accent)}
 .iconbtn{
   width:38px;height:38px;flex:0 0 auto;border-radius:10px;border:1px solid var(--line);
   background:var(--bg);display:grid;place-items:center;font-size:17px
@@ -140,7 +142,19 @@ header{
 #detail.show{transform:none}
 #detail h3{margin:0 0 6px;font-size:19px;line-height:1.25;padding-inline-end:34px}
 #detail .meta{font-size:14px;color:var(--ink-soft);margin-bottom:4px}
-#detail .addr{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px;line-height:1.5}
+#detail .addr{font-size:13.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.5}
+#detail .desc{
+  font-size:14px;line-height:1.6;margin:0 0 10px;color:var(--ink);
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
+  display:none;max-height:110px;overflow-y:auto
+}
+#detail .desc.show{display:block}
+#detail .facts{display:none;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+#detail .facts.show{display:flex}
+.fact{
+  background:var(--bg);border:1px solid var(--line);border-radius:999px;
+  padding:3px 10px;font-size:12.5px;color:var(--ink-soft);font-weight:600
+}
 #detail .acts{display:flex;gap:8px;flex-wrap:wrap}
 /* flex-basis:auto — אם אין מקום הכפתור עובר שורה שלם, במקום להיחתך באמצע */
 #detail .acts a,#detail .acts button{
@@ -291,6 +305,7 @@ header{
       <form class="search" id="geoform">
         <span>🔍</span>
         <input id="q" type="search" placeholder="חפש עיר או רחוב" autocomplete="off">
+        <button type="button" class="citybtn" id="citymode" title="חיפוש בכל העיר">🏙️</button>
       </form>
       <button class="iconbtn" id="locate" title="המיקום שלי" type="button">📍</button>
       <button class="iconbtn" id="openplan" title="תכנון יום" type="button">🗓️</button>
@@ -319,9 +334,12 @@ header{
   <h3 id="dname"></h3>
   <div class="meta" id="dmeta"></div>
   <div class="addr" id="daddr"></div>
+  <div class="desc" id="ddesc"></div>
+  <div class="facts" id="dfacts"></div>
   <div class="acts">
     <a id="dwaze" target="_blank" rel="noopener">ניווט ב‑Waze</a>
     <a id="dmaps" target="_blank" rel="noopener" class="ghost">Google Maps</a>
+    <a id="dweb" target="_blank" rel="noopener" class="ghost" style="display:none">אתר 🌐</a>
     <button id="dfav" class="ghost" type="button">שמור</button>
   </div>
 </div>
@@ -345,7 +363,7 @@ header{
     <div class="prefs" id="pprefs"></div>
 
     <label for="pradius">רדיוס חיפוש: <span id="prlabel"></span></label>
-    <input type="range" id="pradius" min="300" max="5000" step="100">
+    <input type="range" id="pradius" min="300" max="20000" step="100">
 
     <div id="perr"></div>
 
@@ -374,7 +392,7 @@ header{
        כדי לקבל דירוגים וכמות ביקורות אמיתיות (וסידור לפי המלצות) — הדבק מפתח Google Places.</p>
 
     <label for="radius">רדיוס חיפוש: <span id="rlabel"></span></label>
-    <input type="range" id="radius" min="300" max="5000" step="100">
+    <input type="range" id="radius" min="300" max="20000" step="100">
 
     <label for="gkey">מפתח Google Places API (אופציונלי)</label>
     <input type="password" id="gkey" placeholder="AIza..." autocomplete="off" spellcheck="false">
@@ -412,14 +430,20 @@ var CATS = [
     g:['tourist_attraction','movie_theater','bowling_alley','amusement_park'] },
   { id:'sit',   name:'לשבת',   em:'🌳',
     osm:['leisure~"^(park|garden)$"','tourism="viewpoint"','natural="beach"'],
-    g:['park'] }
+    g:['park'] },
+  { id:'sunset',name:'שקיעה',  em:'🌅',
+    osm:['tourism="viewpoint"','natural~"^(beach|cliff|cape)$"','man_made="pier"'],
+    g:['beach','marina'] },
+  { id:'wine',  name:'יקבים',  em:'🍷',
+    osm:['craft="winery"','shop="winery"','tourism="wine_cellar"'],
+    g:['winery'] }
 ];
 
 /* ============ state ============ */
 var LS = 'mvl.v1';
 var cfg = load();
 function load(){
-  var d = { cat:'food', radius:1200, key:'', favs:{} };
+  var d = { cat:'food', radius:1200, key:'', favs:{}, city:false, pp:null };
   try{ var s = JSON.parse(localStorage.getItem(LS)||'{}'); for(var k in d) if(k in s) d[k]=s[k]; }catch(e){}
   if(!CATS.some(function(c){return c.id===d.cat;})) d.cat='food';
   return d;
@@ -465,11 +489,11 @@ useTiles(0);
 
 /* מרכז החיפוש האחרון — הכפתור "חפש באזור הזה" מופיע רק כשבאמת התרחקנו ממנו,
    כדי שהזזה תכנותית של המפה (איתור מיקום, בחירת מקום) לא תדליק אותו לשווא */
-var lastCenter = null;
+var lastCenter = null, lastR = 1200;
 map.on('moveend', function(){
   if(!lastCenter || !results.length) return;
   var c = map.getCenter();
-  var far = dist(lastCenter.lat, lastCenter.lng, c.lat, c.lng) > Math.max(150, cfg.radius * 0.3);
+  var far = dist(lastCenter.lat, lastCenter.lng, c.lat, c.lng) > Math.max(150, lastR * 0.3);
   el('redo').classList.toggle('show', far);
 });
 
@@ -584,10 +608,21 @@ function fetchOSM(lat,lon,r,c){
         if(seen[dup]) return;
         seen[dup] = 1;
         var street = [t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' ');
+        var facts = [];
+        if(t['diet:kosher']==='yes' || t.kosher==='yes') facts.push('כשר');
+        if(t['diet:vegan']==='yes') facts.push('ידידותי לטבעונים');
+        if(t.outdoor_seating==='yes') facts.push('ישיבה בחוץ');
+        if(t.wheelchair==='yes') facts.push('נגיש ♿');
+        if(t.takeaway==='yes') facts.push('טייק אווי');
+        if(t.internet_access && t.internet_access!=='no') facts.push('Wi-Fi');
+        if(t.opening_hours) facts.push('שעות: '+t.opening_hours);
         out.push({
           src:'osm', id:e.type+e.id, name:name,
           lat:la, lon:lo, rating:null, reviews:null, openNow:null,
           hoursCk: parseOH(t.opening_hours),
+          desc: t['description:he'] || t.description || '',
+          facts: facts,
+          web: t.website || t['contact:website'] || '',
           addr:[street, t['addr:city']].filter(Boolean).join(', '),
           kind:t.cuisine||t.amenity||t.leisure||t.tourism||'',
           mapsUrl:'https://www.google.com/maps/search/?api=1&query='+
@@ -606,7 +641,7 @@ function fetchGoogle(lat,lon,r,c,key){
         'X-Goog-Api-Key':key,
         'X-Goog-FieldMask':'places.id,places.displayName,places.rating,places.userRatingCount,' +
           'places.location,places.shortFormattedAddress,places.currentOpeningHours.openNow,' +
-          'places.regularOpeningHours.periods,' +
+          'places.regularOpeningHours.periods,places.editorialSummary,places.websiteUri,' +
           'places.googleMapsUri,places.priceLevel,places.primaryTypeDisplayName'
       },
       body: JSON.stringify({
@@ -635,6 +670,9 @@ function fetchGoogle(lat,lon,r,c,key){
           openNow:(p.currentOpeningHours&&typeof p.currentOpeningHours.openNow==='boolean')
                     ? p.currentOpeningHours.openNow : null,
           hoursCk: gOpenChecker(p.regularOpeningHours && p.regularOpeningHours.periods),
+          desc: (p.editorialSummary && p.editorialSummary.text) || '',
+          facts: [],
+          web: p.websiteUri || '',
           addr:p.shortFormattedAddress||'',
           kind:(p.primaryTypeDisplayName&&p.primaryTypeDisplayName.text)||'',
           price:p.priceLevel||null,
@@ -645,14 +683,20 @@ function fetchGoogle(lat,lon,r,c,key){
 }
 
 /* ============ חיפוש ============ */
+/* מצב "עיר שלמה": אחרי חיפוש עיר, area מחזיק רדיוס שמכסה את כל שטחה
+   וכל החלפת קטגוריה ממשיכה לחפש באותו היקף — עד שזזים ידנית */
+var area = null;
+
 function search(){
-  var c = cat(cfg.cat), ctr = map.getCenter(), r = cfg.radius, my = ++seq;
+  var c = cat(cfg.cat), ctr = map.getCenter(), my = ++seq;
+  var r = area ? area.r : cfg.radius;
+  lastR = r;
   lastCenter = ctr;
   el('redo').classList.remove('show');
   el('detail').classList.remove('show');
   selected = null;
-  say('מחפש ' + c.name + '…');
-  el('ptitle').textContent = c.name;
+  say('מחפש ' + c.name + (area ? ' בכל ' + area.label : '') + '…');
+  el('ptitle').textContent = c.name + (area ? ' · ' + area.label : '');
 
   /* אם גוגל נפל — שומרים את הסיבה ומציגים אותה בסוף, אחרת היא נדרסת
      בהודעה גנרית והמשתמש לא יודע למה נעלמו הדירוגים */
@@ -786,6 +830,22 @@ function select(i, fromList){
   el('dmeta').textContent = bits.join(' · ');
   el('daddr').textContent = p.addr || '';
 
+  /* תיאור "חשוב לדעת" + עובדות */
+  var dd = el('ddesc');
+  dd.textContent = p.desc || '';
+  dd.classList.toggle('show', !!p.desc);
+  var df = el('dfacts');
+  df.innerHTML = '';
+  (p.facts || []).forEach(function(f){
+    var s = document.createElement('span');
+    s.className = 'fact'; s.textContent = f;
+    df.appendChild(s);
+  });
+  df.classList.toggle('show', !!(p.facts && p.facts.length));
+  var dw = el('dweb');
+  if(p.web){ dw.href = p.web; dw.style.display = ''; }
+  else dw.style.display = 'none';
+
   el('dwaze').href = 'https://waze.com/ul?ll=' + p.lat + ',' + p.lon + '&navigate=yes';
   el('dmaps').href = p.src==='g' && p.mapsUrl
     ? p.mapsUrl
@@ -813,6 +873,7 @@ el('dclose').onclick = function(){
 
 /* ============ מיקום ============ */
 function locate(){
+  area = null;
   if(!navigator.geolocation){ say('הדפדפן לא תומך במיקום', true); search(); return; }
   say('מאתר אותך…');
   navigator.geolocation.getCurrentPosition(function(pos){
@@ -834,22 +895,38 @@ function locate(){
 el('locate').onclick = locate;
 
 /* ============ חיפוש כתובת ============ */
-/* גיאוקודינג עם גיבוי: Nominatim ראשי, Photon אם הוא לא זמין */
+/* גיאוקודינג עם גיבוי: Nominatim ראשי, Photon אם הוא לא זמין.
+   מחזיר גם bounding box בשביל מצב "עיר שלמה" */
 function geocode(q){
   return timedFetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=he&q=' +
              encodeURIComponent(q), null, 10000, 'חיפוש הכתובת')
     .then(function(r){ return r.json(); })
-    .then(function(d){ return d.length ? {lat:+d[0].lat, lon:+d[0].lon} : null; })
+    .then(function(d){
+      if(!d.length) return null;
+      var bb = d[0].boundingbox;   /* [דרום, צפון, מערב, מזרח] */
+      return { lat:+d[0].lat, lon:+d[0].lon,
+               bbox: bb ? {s:+bb[0], n:+bb[1], w:+bb[2], e:+bb[3]} : null };
+    })
     .catch(function(){
       return timedFetch('https://photon.komoot.io/api/?limit=1&q=' + encodeURIComponent(q),
                         null, 10000, 'חיפוש הכתובת')
         .then(function(r){ return r.json(); })
         .then(function(d){
           var f = d.features && d.features[0];
-          return f ? {lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0]} : null;
+          if(!f) return null;
+          var ex = f.properties && f.properties.extent;   /* [מערב, צפון, מזרח, דרום] */
+          return { lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0],
+                   bbox: ex ? {s:ex[3], n:ex[1], w:ex[0], e:ex[2]} : null };
         });
     });
 }
+
+el('citymode').onclick = function(){
+  cfg.city = !cfg.city; save();
+  this.classList.toggle('on', cfg.city);
+  say(cfg.city ? 'מצב עיר שלמה פעיל — חפש עיר בשורת החיפוש' : '', false, false);
+};
+if(cfg.city) el('citymode').classList.add('on');
 
 el('geoform').onsubmit = function(ev){
   ev.preventDefault();
@@ -860,13 +937,23 @@ el('geoform').onsubmit = function(ev){
   geocode(q)
     .then(function(pt){
       if(!pt){ say('לא מצאתי את "' + q + '"', true, false); return; }
-      map.setView([pt.lat, pt.lon], 15);
+      area = null;
+      if(cfg.city && pt.bbox){
+        /* רדיוס שמכסה את כל תיבת העיר, עם רצפת הרדיוס שנבחר ותקרה של 30 ק״מ */
+        var cy = (pt.bbox.s + pt.bbox.n)/2, cx = (pt.bbox.w + pt.bbox.e)/2;
+        var cover = dist(cy, cx, pt.bbox.n, pt.bbox.e);
+        if(cover >= 500){
+          area = { r: Math.min(Math.max(cover, cfg.radius), 30000), label: q };
+          map.fitBounds([[pt.bbox.s, pt.bbox.w],[pt.bbox.n, pt.bbox.e]], { animate:false });
+        }
+      }
+      if(!area) map.setView([pt.lat, pt.lon], 15);
       search();
     })
     .catch(function(err){ say(err.message, true, false); });
 };
 
-el('redo').onclick = search;
+el('redo').onclick = function(){ area = null; search(); };
 /* הודעת שגיאה = כפתור ניסיון חוזר */
 el('status').onclick = function(){ if(this.dataset.retry) search(); };
 
@@ -973,13 +1060,16 @@ function gOpenChecker(periods){
 function fetchWeather(lat, lon, dateStr){
   return timedFetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
       '&hourly=temperature_2m,precipitation_probability,weather_code,is_day'+
-      '&start_date='+dateStr+'&end_date='+dateStr+'&timezone=auto', null, 10000, 'שירות מזג האוויר')
+      '&daily=sunset&start_date='+dateStr+'&end_date='+dateStr+'&timezone=auto', null, 10000, 'שירות מזג האוויר')
     .then(function(r){ if(!r.ok) throw new Error('מזג אוויר '+r.status); return r.json(); })
     .then(function(d){
       var h = d.hourly || {};
       if(!h.temperature_2m || !h.temperature_2m.length) throw new Error('אין תחזית');
+      var sunset = null;
+      var ss = d.daily && d.daily.sunset && d.daily.sunset[0];   /* "2026-08-28T19:15" */
+      if(ss){ var tm = String(ss).match(/T(\d{2}):(\d{2})/); if(tm) sunset = +tm[1]*60 + +tm[2]; }
       return { temp:h.temperature_2m, prob:h.precipitation_probability||[],
-               code:h.weather_code||[], isday:h.is_day||[] };
+               code:h.weather_code||[], isday:h.is_day||[], sunset:sunset };
     });
 }
 function wIcon(code){
@@ -995,7 +1085,7 @@ function wIcon(code){
 }
 
 /* --- בניית המסלול --- */
-var PLAN_DUR = { coffee:45, food:75, bar:75, fun:90, sit:40 };
+var PLAN_DUR = { coffee:45, food:75, bar:75, fun:90, sit:40, sunset:45, wine:75 };
 
 function buildPlan(places, w, o){
   /* o: {day, start, end (דקות), prefs[], center{lat,lng}} */
@@ -1011,18 +1101,25 @@ function buildPlan(places, w, o){
   var uses = {}, used = {}, hadLunch = false, hadDinner = false, lastCat = null;
   var t = o.start, pos = o.center, stops = [], guard = 0;
 
+  var sunsetMin = (w && w.sunset) || 1125;   /* בלי תחזית: ~18:45 */
+
   function catOrder(t){
     var list = [], h = t/60;
     var lunchW  = t >= 660  && t <= 900;    /* 11:00–15:00 */
     var dinnerW = t >= 1080 && t <= 1290;   /* 18:00–21:30 */
+    /* שקיעה קודמת להכל — היא לא מחכה לאף אחד */
+    if(o.prefs.indexOf('sunset') > -1 && !uses.sunset &&
+       t >= sunsetMin - 75 && t <= sunsetMin + 15 && !rain(Math.floor(h)))
+      list.push('sunset');
     if(o.prefs.indexOf('food') > -1 && ((lunchW && !hadLunch) || (dinnerW && !hadDinner)))
       list.push('food');
     var rest = o.prefs.filter(function(c){
-      if(c === 'food') return false;
+      if(c === 'food' || c === 'sunset') return false;
       if(c === 'coffee' && (t < 420 || t > 1050 || (uses.coffee||0) >= 2)) return false;
       if(c === 'sit'    && (!daylight(Math.floor(h)) || rain(Math.floor(h)))) return false;
       if(c === 'bar'    && t < 1020) return false;
       if(c === 'fun'    && (t < 600 || t > 1290)) return false;
+      if(c === 'wine'   && (t < 600 || t > 1080 || (uses.wine||0) >= 1)) return false;
       return true;
     });
     rest.sort(function(a,b){ return (uses[a]||0) - (uses[b]||0); });
@@ -1061,6 +1158,8 @@ function buildPlan(places, w, o){
     var arrive = t + found.walk;
     if(arrive + Math.round(PLAN_DUR[cat]*0.6) > o.end) break;
     var leave = Math.min(arrive + PLAN_DUR[cat], o.end);
+    /* תחנת שקיעה חייבת להכיל את רגע השקיעה עצמו */
+    if(cat === 'sunset') leave = Math.min(Math.max(leave, sunsetMin + 10), o.end);
     stops.push({ p:found.p, cat:cat, walkM:found.d, walkMin:found.walk,
                  arrive:arrive, leave:leave, unknown:!!found.unknown });
     used[keyOf(found.p)] = 1;
