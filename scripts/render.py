@@ -131,6 +131,27 @@ body {
 h1 { font-size: 30px; margin: 0 0 5px; letter-spacing: -0.025em; font-weight: 680; }
 .sub { color: var(--ink-2); margin: 0; font-size: 14px; }
 
+/* ---------- רצועת חיבורים (בנקאות פתוחה) ---------- */
+.conns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.conn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--raised); border: 1px solid var(--ring);
+  border-radius: 20px; padding: 5px 13px; font-size: 12.5px; color: var(--ink-2);
+}
+.conn b { color: var(--ink); font-weight: 600; }
+.conn .st { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.st.ok      { background: var(--good); }
+.st.warn    { background: #d97706; }
+.st.bad     { background: var(--critical); }
+.alert {
+  display: flex; gap: 10px; align-items: baseline;
+  border: 1px solid var(--ring); border-inline-start: 3px solid var(--critical);
+  background: var(--raised); border-radius: 12px;
+  padding: 12px 16px; margin-bottom: 14px; font-size: 13.5px; color: var(--ink-2);
+}
+.alert.warn { border-inline-start-color: #d97706; }
+.alert b { color: var(--ink); }
+
 /* ---------- אריחי מדדים ---------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px; }
 .tile {
@@ -145,8 +166,28 @@ h1 { font-size: 30px; margin: 0 0 5px; letter-spacing: -0.025em; font-weight: 68
 .tile .label { color: var(--ink-2); font-size: 12.5px; font-weight: 550; margin-bottom: 5px; }
 .tile .value { font-size: 28px; font-weight: 660; letter-spacing: -0.03em; line-height: 1.15; }
 .tile .note { color: var(--muted); font-size: 12px; margin-top: 5px; }
+.tile .spark { margin-top: 10px; color: var(--accent, var(--series-1)); }
+.tile .spark svg { display: block; overflow: visible; }
 .pos { color: var(--good); }
 .neg { color: var(--critical); }
+
+/* ---------- יתרות ---------- */
+.bal-rows { display: flex; flex-direction: column; }
+.bal {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 14px;
+  align-items: center; padding: 9px 6px; border-bottom: 1px solid var(--grid);
+  border-radius: 7px;
+}
+.bal:last-child { border-bottom: none; }
+.bal:hover { background: var(--plane); }
+.bal .nm { font-size: 13.5px; font-weight: 550; }
+.bal .tp {
+  font-size: 11px; padding: 1px 9px; border-radius: 20px;
+  background: var(--grid); color: var(--ink-2); font-weight: 550;
+}
+.bal .amt { font-size: 14px; font-weight: 620; font-variant-numeric: tabular-nums; }
+.bal.total { border-top: 1px solid var(--axis); margin-top: 4px; }
+.bal.total .nm { color: var(--ink-2); font-weight: 600; }
 
 /* ---------- כרטיס ---------- */
 .card {
@@ -385,6 +426,137 @@ def head(title: str, subtitle: str) -> str:
 # --- רכיבים ---------------------------------------------------------------
 
 
+def sparkline(values: list[float], width: int = 104, height: int = 26) -> str:
+    """קו מגמה זעיר, SVG מוטמע. ציר הזמן משמאל לימין, הנקודה האחרונה מודגשת."""
+    if len(values) < 2:
+        return ""
+    lo, hi = min(values), max(values)
+    span = (hi - lo) or 1.0
+    pad = 3
+    step = (width - 2 * pad) / (len(values) - 1)
+    points = [
+        (pad + i * step, pad + (height - 2 * pad) * (1 - (v - lo) / span))
+        for i, v in enumerate(values)
+    ]
+    path = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+    lx, ly = points[-1]
+    area = f"M{points[0][0]:.1f},{height} L{path.replace(' ', ' L')} L{lx:.1f},{height} Z"
+    return (
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
+        f'aria-hidden="true" dir="ltr">'
+        f'<path d="{area}" fill="currentColor" opacity="0.10"></path>'
+        f'<polyline points="{path}" fill="none" stroke="currentColor" '
+        f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>'
+        f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="2.6" fill="currentColor"></circle>'
+        "</svg>"
+    )
+
+
+def _conn_level(conn: dict, today, stale_days: int) -> tuple[str, str]:
+    """מחזיר (רמה, הסבר): ok / warn / bad, לפי טריות הנתונים ותוקף ההסכמה."""
+    from datetime import datetime, timedelta
+
+    notes, level = [], "ok"
+
+    expiry = conn.get("consentExpiry")
+    if expiry:
+        exp = datetime.strptime(expiry[:10], "%Y-%m-%d").date()
+        if exp < today:
+            return "bad", f"ההסכמה פגה ב-{exp:%d.%m} — הנתונים הפסיקו לזרום"
+        if exp <= today + timedelta(days=30):
+            level = "warn"
+            notes.append(f"ההסכמה פגה ב-{exp:%d.%m} — לחדש בקרוב")
+
+    through = conn.get("dataThrough")
+    if through:
+        thr = datetime.strptime(through[:10], "%Y-%m-%d").date()
+        behind = (today - thr).days
+        if behind > stale_days:
+            level = "bad" if behind > stale_days * 3 else "warn"
+            notes.append(f"עדכני עד {thr:%d.%m} בלבד ({behind} ימים אחורה)")
+        else:
+            notes.append(f"עדכני עד {thr:%d.%m}")
+
+    if str(conn.get("status", "")).upper() not in ("", "OK", "ACTIVE", "CONNECTED"):
+        level = "bad"
+        notes.insert(0, f"סטטוס: {conn['status']}")
+
+    return level, " · ".join(notes)
+
+
+def connections_strip(sync: dict) -> str:
+    """רצועת מצב החיבורים + התראה אם משהו דורש טיפול. ריק אם אין נתוני סנכרון."""
+    conns = (sync or {}).get("connections") or []
+    if not conns:
+        return ""
+    from datetime import date
+
+    today = date.today()
+    stale_days = int(sync.get("staleThresholdDays", 5))
+
+    chips, problems = [], []
+    for conn in conns:
+        level, note = _conn_level(conn, today, stale_days)
+        chips.append(
+            f'<span class="conn"><span class="st {level}"></span>'
+            f"<b>{esc(conn.get('name', '?'))}</b>"
+            + (f"<span>{esc(note)}</span>" if note else "")
+            + "</span>"
+        )
+        if level != "ok":
+            problems.append((level, conn.get("name", "?"), note))
+
+    out = ""
+    if problems:
+        worst = "bad" if any(p[0] == "bad" for p in problems) else "warn"
+        listing = " · ".join(f"<b>{esc(n)}</b>: {esc(note)}" for _, n, note in problems)
+        prefix = (
+            "שים לב — חלק מהנתונים בדשבורד עלולים להיות חלקיים."
+            if worst == "bad"
+            else "כדאי לטפל בקרוב:"
+        )
+        out += f'<div class="alert {worst}"><span>⚠</span><span>{prefix} {listing}</span></div>'
+    out += f'<div class="conns">{"".join(chips)}</div>'
+    return out
+
+
+TYPE_HE = {
+    "CHECKING": "עו\"ש",
+    "CARD": "אשראי",
+    "SAVINGS": "חיסכון",
+    "LOAN": "הלוואה",
+    "SECURITY": "ני\"ע",
+}
+
+
+def balances_card(balances: dict) -> str:
+    """כרטיס יתרות מהקונקטור. ריק אם אין נתונים."""
+    accounts = (balances or {}).get("accounts") or []
+    if not accounts:
+        return ""
+    rows, total = [], 0.0
+    for acct in accounts:
+        amount = float(acct.get("balance", 0))
+        kind = str(acct.get("type", "")).upper()
+        # הלוואה מוצגת ונספרת כשלילית; ני"ע לא נכלל בסה"כ הנזיל
+        signed = -abs(amount) if kind == "LOAN" else amount
+        if kind != "SECURITY":
+            total += signed
+        cls = "neg" if signed < 0 else ""
+        rows.append(
+            f'<div class="bal"><span class="nm">{esc(acct.get("name", "?"))}</span>'
+            f'<span class="tp">{esc(TYPE_HE.get(kind, kind))}</span>'
+            f'<span class="amt {cls}">{money_html(signed)}</span></div>'
+        )
+    rows.append(
+        f'<div class="bal total"><span class="nm">סה"כ (ללא ני"ע)</span><span></span>'
+        f'<span class="amt {"neg" if total < 0 else "pos"}">{money_html(total)}</span></div>'
+    )
+    as_of = (balances.get("asOf") or "")[:10]
+    title = "יתרות" + (f" · נכון ל-{as_of}" if as_of else "")
+    return card(title, f'<div class="bal-rows">{"".join(rows)}</div>')
+
+
 def tiles(items: list[dict]) -> str:
     """items: {label, amount, cls, note, accent} — amount מרונדר כ-HTML מבודד LTR."""
     cells = ""
@@ -392,11 +564,18 @@ def tiles(items: list[dict]) -> str:
         accent = item.get("accent")
         style = f' style="--accent:{accent}"' if accent else ""
         note = item.get("note")
+        spark = item.get("spark") or []
+        spark_html = sparkline(spark) if len(spark) >= 2 else ""
         cells += (
             f'<div class="tile"{style}>'
             f'<div class="label">{esc(item["label"])}</div>'
             f'<div class="value {item.get("cls", "")}">{money_html(item["amount"])}</div>'
             + (f'<div class="note">{note}</div>' if note else "")
+            + (
+                f'<div class="spark" title="6 החודשים האחרונים">{spark_html}</div>'
+                if spark_html
+                else ""
+            )
             + "</div>"
         )
     return f'<div class="tiles">{cells}</div>'

@@ -107,8 +107,17 @@ def parse_date(value, date_format: str | None):
 # --- סיווג ----------------------------------------------------------------
 
 
+def _keyword_matches(keyword: str, text: str) -> bool:
+    """מילות מפתח קצרות (עד 3 תווים, כמו 'בר'/'דן') מסוכנות כ-substring —
+    'בר' מתאים בתוך 'העברה'. לכן הן דורשות התאמת מילה שלמה; ארוכות יותר
+    ממשיכות כ-substring רגיל."""
+    if len(keyword) >= 4:
+        return keyword in text
+    return re.search(rf"(?<!\w){re.escape(keyword)}(?!\w)", text) is not None
+
+
 def categorize(description: str, amount: float, categories: dict) -> str:
-    """התאמת substring לא תלוית רישיות. מחזיר קטגוריה או UNCLASSIFIED/אחר."""
+    """התאמת מילות מפתח לא תלוית רישיות. מחזיר קטגוריה או UNCLASSIFIED/אחר."""
     text = (description or "").strip().lower()
 
     best_category, best_len = None, 0
@@ -116,7 +125,7 @@ def categorize(description: str, amount: float, categories: dict) -> str:
         for keyword in keywords:
             k = keyword.strip().lower()
             # מילת מפתח ארוכה יותר = התאמה ספציפית יותר, מנצחת
-            if k and k in text and len(k) > best_len:
+            if k and len(k) > best_len and _keyword_matches(k, text):
                 best_category, best_len = name, len(k)
 
     if best_category:
@@ -156,3 +165,51 @@ def month_key(series: pd.Series) -> pd.Series:
 
 def fmt_ils(amount: float) -> str:
     return f"{amount:,.0f} ₪"
+
+
+# --- שמות חודשים בעברית --------------------------------------------------
+
+HEBREW_MONTHS = [
+    "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+    "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+]
+
+
+def month_he(month: str, with_year: bool = True) -> str:
+    """'2026-06' -> 'יוני 2026' (או 'יוני' בלבד)."""
+    try:
+        year, m = month.split("-")
+        name = HEBREW_MONTHS[int(m) - 1]
+    except (ValueError, IndexError):
+        return month
+    return f"{name} {year}" if with_year else name
+
+
+# --- נתוני סנכרון מהקונקטור (בנקאות פתוחה) --------------------------------
+# הקבצים האלה נכתבים ע"י שלב הסנכרון של Claude Code מול קונקטור financy,
+# בסכימה מנורמלת שבשליטתנו (לא בפורמט הגולמי של ה-API). כשהם לא קיימים —
+# הדשבורד פשוט לא מציג את הרכיבים, ומסלול ה-CSV עובד כרגיל.
+
+SYNC_STATUS = DATA_DIR / "sync_status.json"
+BALANCES = DATA_DIR / "balances.json"
+
+
+def load_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    import json
+
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) or {}
+    except (ValueError, OSError):
+        return {}
+
+
+def load_sync_status() -> dict:
+    """{updatedAt, staleThresholdDays, connections:[{name,status,dataThrough,consentExpiry,accounts}]}"""
+    return load_json(SYNC_STATUS)
+
+
+def load_balances() -> dict:
+    """{asOf, accounts:[{name,type,balance,currency,source}]}"""
+    return load_json(BALANCES)

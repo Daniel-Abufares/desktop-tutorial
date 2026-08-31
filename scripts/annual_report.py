@@ -14,7 +14,7 @@ import sys
 
 import pandas as pd
 
-from common import REPORTS_DIR, load_ledger, month_key
+from common import REPORTS_DIR, load_ledger, month_he, month_key
 from render import card, chart_card, esc, head, money, money_html, page, table, tiles, trend
 
 NAV_MONTHS = 6
@@ -35,7 +35,10 @@ def totals(df: pd.DataFrame) -> tuple[float, float, float]:
 
 def nav_for(year: str, all_months: list[str], all_years: list[str]) -> list[tuple[str, str, bool]]:
     recent = all_months[-NAV_MONTHS:]
-    links = [(m, f"../../{m}/dashboard.html", False) for m in recent]
+    links = [
+        (f"{month_he(m, with_year=False)} {m[2:4]}", f"../../{m}/dashboard.html", False)
+        for m in recent
+    ]
     if all_years:
         links.append(("|", "", False))
         for other in all_years[-2:]:
@@ -57,7 +60,7 @@ def build_year(ledger: pd.DataFrame, year: str, all_months: list[str], all_years
     for month in sorted(df["month"].unique()):
         month_df = df[df["month"] == month]
         m_income, m_expense, _ = totals(month_df)
-        months.append((month, m_income, m_expense))
+        months.append((month_he(month, with_year=False), m_income, m_expense))
 
     by_category = [
         (str(k), float(v))

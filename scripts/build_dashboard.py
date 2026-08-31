@@ -15,10 +15,19 @@ import sys
 
 import pandas as pd
 
-from common import REPORTS_DIR, load_ledger, month_key
+from common import (
+    REPORTS_DIR,
+    load_balances,
+    load_ledger,
+    load_sync_status,
+    month_he,
+    month_key,
+)
 from render import (
+    balances_card,
     card,
     chart_card,
+    connections_strip,
     esc,
     head,
     money,
@@ -89,7 +98,10 @@ def find_anomalies(ledger: pd.DataFrame, month: str) -> list[dict]:
 def nav_for(month: str, all_months: list[str]) -> list[tuple[str, str, bool]]:
     """קישורים לחודשים האחרונים + לדוח השנתי, בנתיבים יחסיים."""
     recent = all_months[-NAV_MONTHS:]
-    links = [(m, f"../{m}/dashboard.html", m == month) for m in recent]
+    links = [
+        (f"{month_he(m, with_year=False)} {m[2:4]}", f"../{m}/dashboard.html", m == month)
+        for m in recent
+    ]
     years = sorted({m[:4] for m in all_months})
     if years:
         links.append(("|", "", False))
@@ -133,12 +145,24 @@ def build_month(ledger: pd.DataFrame, month: str, all_months: list[str]) -> dict
     by_category = expenses_by(month_df, "category")
     by_account = expenses_by(month_df, "account")
 
+    # סדרות ל-sparkline: 6 החודשים האחרונים עד החודש הנוכחי (כולל)
+    window = all_months[max(0, index - 5): index + 1]
+    spark_income, spark_expense, spark_net = [], [], []
+    for m in window:
+        m_df = ledger[ledger["month"] == m]
+        inc = float(m_df[m_df["amount"] > 0]["amount"].sum())
+        exp = float(-m_df[m_df["amount"] < 0]["amount"].sum())
+        spark_income.append(inc)
+        spark_expense.append(exp)
+        spark_net.append(inc - exp)
+
     accounts = sorted(month_df["account"].dropna().unique())
     body = [
         head(
-            f"דשבורד חודשי — {month}",
+            month_he(month),
             f"{len(month_df)} תנועות · {len(accounts)} חשבונות · {', '.join(accounts)}",
         ),
+        connections_strip(load_sync_status()),
         tiles(
             [
                 {
@@ -147,6 +171,7 @@ def build_month(ledger: pd.DataFrame, month: str, all_months: list[str]) -> dict
                     "cls": "pos",
                     "accent": ACCENT_INCOME,
                     "note": delta_note(income, p_income, True),
+                    "spark": spark_income,
                 },
                 {
                     "label": "הוצאות",
@@ -154,6 +179,7 @@ def build_month(ledger: pd.DataFrame, month: str, all_months: list[str]) -> dict
                     "cls": "neg",
                     "accent": ACCENT_EXPENSE,
                     "note": delta_note(expense, p_expense, False),
+                    "spark": spark_expense,
                 },
                 {
                     "label": "נטו",
@@ -161,9 +187,11 @@ def build_month(ledger: pd.DataFrame, month: str, all_months: list[str]) -> dict
                     "cls": "pos" if net >= 0 else "neg",
                     "accent": ACCENT_NET,
                     "note": delta_note(net, p_net, True) or ("עודף" if net >= 0 else "גירעון"),
+                    "spark": spark_net,
                 },
             ]
         ),
+        balances_card(load_balances()),
     ]
 
     if anomalies:
