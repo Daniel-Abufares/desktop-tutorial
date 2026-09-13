@@ -284,10 +284,57 @@ tbody tr:last-child td { border-bottom: none; }
    ו-"‎-5,200 ₪" מוצג כ-"5,200- ₪". */
 .mny { direction: ltr; unicode-bidi: isolate; display: inline-block; }
 footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 36px; }
+/* ---------- נייד ----------
+   שלושה אריחים בגובה מלא דוחפים את כל התוכן מתחת לקיפול, לכן בנייד
+   הכנסות/הוצאות יושבים זה לצד זה ונטו נפרש מתחתיהם. */
 @media (max-width: 620px) {
-  .row { grid-template-columns: 108px 1fr 82px; }
+  body { font-size: 14px; }
+  .wrap { padding: 0 14px 56px; }
+  .topbar .inner { padding: 9px 14px; gap: 9px; }
+  .brand { font-size: 13px; }
+  .head { margin: 2px 0 16px; }
+  h1 { font-size: 23px; }
+  h2 { font-size: 15px; }
+  .sub { font-size: 12.5px; overflow-wrap: anywhere; }
+
+  .tiles { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { padding: 12px 13px; border-radius: 12px; }
+  .tile .label { font-size: 11.5px; margin-bottom: 3px; }
+  .tile .value { font-size: 20px; }
+  .tile .note { font-size: 11px; margin-top: 3px; }
+  .tile .spark { margin-top: 7px; }
+  .tile .spark svg { width: 100%; height: 22px; }
+  .tiles .tile:last-child { grid-column: 1 / -1; }
+
+  .card { padding: 15px; border-radius: 12px; margin-bottom: 14px; }
+  .card > header { margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+
+  .conn { font-size: 11.5px; padding: 4px 10px; gap: 6px; }
+  .conn b { white-space: nowrap; }
+  .alert { font-size: 12.5px; padding: 11px 13px; }
+
+  .row { grid-template-columns: 92px 1fr 74px; gap: 8px; padding: 4px 2px; }
   .row .pct { display: none; }
-  h1 { font-size: 24px; }
+  .row .name, .row .val { font-size: 12px; }
+
+  /* יתרה: השם והתגית זה מעל זה, הסכום מיושר לצד */
+  .bal { grid-template-columns: 1fr auto; column-gap: 10px; row-gap: 1px; }
+  .bal .nm { grid-column: 1; grid-row: 1; font-size: 12.5px; }
+  .bal .tp { grid-column: 1; grid-row: 2; justify-self: start; font-size: 10.5px; }
+  .bal .amt { grid-column: 2; grid-row: 1 / -1; align-self: center; font-size: 13px; }
+
+  .trend .m { grid-template-columns: 46px 1fr; gap: 8px; }
+  .trend .mn { font-size: 11px; }
+  .pair .lab { font-size: 10.5px; }
+  .legend { font-size: 12px; gap: 14px; }
+
+  .search { width: 100%; }
+  th, td { padding: 7px 6px; font-size: 12px; }
+  .chip { font-size: 10.5px; padding: 1px 7px; }
+}
+@media (max-width: 380px) {
+  .tiles { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 78px 1fr 70px; }
 }
 @media print {
   .topbar, .toggle, .search, .iconbtn { display: none !important; }
