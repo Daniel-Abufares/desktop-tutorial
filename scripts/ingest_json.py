@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""קליטת תנועות מנורמלות (JSON) אל היומן המרכזי — נקודת הנחיתה של קונקטור
-בנקאות פתוחה (financy).
+"""קליטת תנועות מנורמלות (JSON) אל היומן המרכזי — נקודת נחיתה גנרית לכל
+מקור אוטומטי (אגרגטור בנקאות פתוחה, API של בנק, או ייצוא ממערכת אחרת).
 
     python3 scripts/ingest_json.py <path.json> [--dry-run]
     cat records.json | python3 scripts/ingest_json.py -
